@@ -1,0 +1,3383 @@
+From dfd3494117fece293af9a7c1a73384cab0f9e126 Mon Sep 17 00:00:00 2001
+From: Celliwig <celliwig@nym.hush.com>
+Date: Sun, 2 May 2021 00:06:38 +0100
+Subject: Added clock driver.
+
+---
+ drivers/clk/Kconfig                 |   1 +
+ drivers/clk/Makefile                |   3 +-
+ drivers/clk/realtek/Kconfig         |  21 ++
+ drivers/clk/realtek/Makefile        |  14 +
+ drivers/clk/realtek/cc-platform.c   | 131 ++++++++
+ drivers/clk/realtek/cc-rtd129x.c    | 480 ++++++++++++++++++++++++++++
+ drivers/clk/realtek/cgc.c           | 266 +++++++++++++++
+ drivers/clk/realtek/clk-dummy.c     | 181 +++++++++++
+ drivers/clk/realtek/clk-mmio-gate.c |  96 ++++++
+ drivers/clk/realtek/clk-mmio-gate.h |  50 +++
+ drivers/clk/realtek/clk-mmio-mux.c  |  69 ++++
+ drivers/clk/realtek/clk-mmio-mux.h  |  39 +++
+ drivers/clk/realtek/clk-pll.c       | 377 ++++++++++++++++++++++
+ drivers/clk/realtek/clk-pll.h       | 340 ++++++++++++++++++++
+ drivers/clk/realtek/common.c        | 290 +++++++++++++++++
+ drivers/clk/realtek/common.h        | 302 +++++++++++++++++
+ drivers/clk/realtek/reset.c         | 436 +++++++++++++++++++++++++
+ include/soc/realtek/rdbg.h          |  68 ++++
+ include/soc/realtek/rtk_mmio.h      |  52 +++
+ 19 files changed, 3215 insertions(+), 1 deletion(-)
+ create mode 100644 drivers/clk/realtek/Kconfig
+ create mode 100644 drivers/clk/realtek/Makefile
+ create mode 100644 drivers/clk/realtek/cc-platform.c
+ create mode 100644 drivers/clk/realtek/cc-rtd129x.c
+ create mode 100644 drivers/clk/realtek/cgc.c
+ create mode 100644 drivers/clk/realtek/clk-dummy.c
+ create mode 100644 drivers/clk/realtek/clk-mmio-gate.c
+ create mode 100644 drivers/clk/realtek/clk-mmio-gate.h
+ create mode 100644 drivers/clk/realtek/clk-mmio-mux.c
+ create mode 100644 drivers/clk/realtek/clk-mmio-mux.h
+ create mode 100644 drivers/clk/realtek/clk-pll.c
+ create mode 100644 drivers/clk/realtek/clk-pll.h
+ create mode 100644 drivers/clk/realtek/common.c
+ create mode 100644 drivers/clk/realtek/common.h
+ create mode 100644 drivers/clk/realtek/reset.c
+ create mode 100644 include/soc/realtek/rdbg.h
+ create mode 100644 include/soc/realtek/rtk_mmio.h
+
+diff --git a/drivers/clk/Kconfig b/drivers/clk/Kconfig
+index 85856cff5..aea66ab44 100644
+--- a/drivers/clk/Kconfig
++++ b/drivers/clk/Kconfig
+@@ -393,5 +393,6 @@ source "drivers/clk/ti/Kconfig"
+ source "drivers/clk/uniphier/Kconfig"
+ source "drivers/clk/x86/Kconfig"
+ source "drivers/clk/zynqmp/Kconfig"
++source "drivers/clk/realtek/Kconfig"
+ 
+ endif
+diff --git a/drivers/clk/Makefile b/drivers/clk/Makefile
+index dbdc590e7..115db2575 100644
+--- a/drivers/clk/Makefile
++++ b/drivers/clk/Makefile
+@@ -124,4 +124,5 @@ obj-$(CONFIG_X86)			+= x86/
+ endif
+ obj-$(CONFIG_ARCH_ZX)			+= zte/
+ obj-$(CONFIG_ARCH_ZYNQ)			+= zynq/
+-obj-$(CONFIG_COMMON_CLK_ZYNQMP)         += zynqmp/
++obj-$(CONFIG_COMMON_CLK_ZYNQMP)		+= zynqmp/
++obj-$(CONFIG_COMMON_CLK_REALTEK)	+= realtek/
+diff --git a/drivers/clk/realtek/Kconfig b/drivers/clk/realtek/Kconfig
+new file mode 100644
+index 000000000..e030fb081
+--- /dev/null
++++ b/drivers/clk/realtek/Kconfig
+@@ -0,0 +1,21 @@
++config COMMON_CLK_REALTEK
++	bool "Clock driver for realtek"
++	select RTK_MMIO 
++	select RESET_CONTROLLER
++
++config COMMON_CLK_REALTEK_DEBUG
++	bool "Clock debug"
++	select RTK_REGISTER_TRACKER
++	default y
++	help
++	  Add a simple register tracker to clock
++
++config COMMON_CLK_RTD129X
++	bool "Clock driver for RTD129x"
++	select COMMON_CLK_REALTEK
++	default y if ARCH_RTD129x
++
++config COMMON_CLK_DUMMY
++	bool "Dummy Clock"
++	help
++	  Dummy Clock, if not sure say N.
+diff --git a/drivers/clk/realtek/Makefile b/drivers/clk/realtek/Makefile
+new file mode 100644
+index 000000000..c8e04b782
+--- /dev/null
++++ b/drivers/clk/realtek/Makefile
+@@ -0,0 +1,14 @@
++obj-$(CONFIG_COMMON_CLK_REALTEK) += clk-rtk.o
++obj-$(CONFIG_COMMON_CLK_DUMMY) += clk-dummy.o
++
++clk-rtk-y += common.o
++clk-rtk-y += clk-mmio-mux.o
++clk-rtk-y += clk-mmio-gate.o
++clk-rtk-y += cgc.o
++clk-rtk-y += reset.o
++clk-rtk-y += clk-pll.o
++clk-rtk-y += cc-platform.o
++
++clk-rtk-$(CONFIG_COMMON_CLK_RTD129X) += cc-rtd129x.o
++
++
+diff --git a/drivers/clk/realtek/cc-platform.c b/drivers/clk/realtek/cc-platform.c
+new file mode 100644
+index 000000000..87a6c0980
+--- /dev/null
++++ b/drivers/clk/realtek/cc-platform.c
+@@ -0,0 +1,131 @@
++/*
++ * cc-platform.c - clock controller platform driver
++ *
++ * Copyright (C) 2018 Realtek Semiconductor Corporation
++ * Copyright (C) 2018 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#define pr_fmt(fmt) "rtk-clk: " fmt
++
++#include <linux/slab.h>
++#include <linux/platform_device.h>
++#include <linux/of.h>
++#include <linux/of_address.h>
++#include <linux/clk.h>
++#include <linux/clkdev.h>
++#include <linux/clk-provider.h>
++#include <linux/bitops.h>
++#include <linux/pm.h>
++#include <linux/suspend.h>
++#include <soc/realtek/rtk_mmio.h>
++#include "common.h"
++
++static int rtk_cc_suspend(struct device *dev)
++{
++	int i;
++	struct cc_desc *ccd = dev_get_drvdata(dev);
++
++//#ifdef CONFIG_SUSPEND
++//	if (RTK_PM_STATE == PM_SUSPEND_STANDBY)
++//		return 0;
++//#endif
++	dev_info(dev, "[CLK] Enter %s\n", __func__);
++
++	for (i = 0; i < cc_clock_num(); i++)
++		clk_pm_data_save(&ccd->pm_data[i]);
++
++	dev_info(dev, "[CLK] Exit %s\n", __func__);
++	return 0;
++}
++
++static int rtk_cc_resume(struct device *dev)
++{
++	int i;
++	struct cc_desc *ccd = dev_get_drvdata(dev);
++//#ifdef CONFIG_SUSPEND
++//	if (RTK_PM_STATE == PM_SUSPEND_STANDBY)
++//		return 0;
++//#endif
++	dev_info(dev, "[CLK] Enter %s\n", __func__);
++
++	for (i = cc_clock_num() - 1; i >= 0; i--)
++		clk_pm_data_restore(&ccd->pm_data[i]);
++
++	dev_info(dev, "[CLK] Exit %s\n", __func__);
++	return 0;
++}
++
++static const struct dev_pm_ops rtk_cc_pm_ops = {
++	.suspend_noirq = rtk_cc_suspend,
++	.resume_noirq = rtk_cc_resume,
++};
++
++static int rtk_cc_probe(struct platform_device *pdev)
++{
++	struct cc_desc *ccd;
++	struct device *dev = &pdev->dev;
++	struct device_node *np = dev->of_node;
++	void __iomem *reg;
++	struct regmap *regmap;
++	int offset = 0;
++	int ret;
++
++	dev_info(dev, "[CLK] %s\n", __func__);
++
++	ccd = devm_cc_alloc(dev, cc_clock_num());
++	if (!ccd)
++		return -ENOMEM;
++
++	/* register access */
++	reg = of_iomap(np, 0);
++	regmap = of_get_rtk_mmio_regmap_with_offset(np, 0, &offset);
++	if (!reg && IS_ERR_OR_NULL(regmap))
++		return -EINVAL;
++	if (IS_ERR(regmap))
++		regmap = NULL;
++
++	ccd->init_data.flags = CLK_REG_FAST_ACCESS,
++	ccd->init_data.private_offset = 0x100,
++	ccd->init_data.reg = reg;
++	if (regmap) {
++		dev_info(dev, "use mmio regmap\n");
++		ccd->init_data.offset = offset;
++		ccd->init_data.regmap = regmap;
++	}
++
++	platform_set_drvdata(pdev, ccd);
++
++	ret = cc_init_clocks(dev);
++	if (ret)
++		dev_err(dev, "rtk_cc_init_clocks() returns %d\n", ret);
++
++	ret = of_clk_add_provider(np, of_clk_src_onecell_get, &ccd->data);
++	if (ret)
++		dev_err(dev, "of_clk_add_provider() returns %d\n", ret);
++
++	return 0;
++}
++
++static const struct of_device_id rtk_cc_match[] = {
++	{.compatible = "realtek,clock-controller"},
++	{}
++};
++
++static struct platform_driver rtk_cc_driver = {
++	.probe = rtk_cc_probe,
++	.driver = {
++		.name = "rtk-cc",
++		.of_match_table = rtk_cc_match,
++		.pm = &rtk_cc_pm_ops,
++	},
++};
++
++static int __init rtk_cc_init(void)
++{
++	return platform_driver_register(&rtk_cc_driver);
++}
++core_initcall(rtk_cc_init);
+diff --git a/drivers/clk/realtek/cc-rtd129x.c b/drivers/clk/realtek/cc-rtd129x.c
+new file mode 100644
+index 000000000..3c3a7eb58
+--- /dev/null
++++ b/drivers/clk/realtek/cc-rtd129x.c
+@@ -0,0 +1,480 @@
++/*
++ * cc-rtd129x.c - RTD129x clock controller
++ *
++ * Copyright (C) 2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#define pr_fmt(fmt) "rtk-clk: " fmt
++
++#include <linux/clk.h>
++#include <linux/clkdev.h>
++#include <linux/clk-provider.h>
++#include <linux/bitops.h>
++#include "common.h"
++#include "clk-pll.h"
++#include "clk-mmio-gate.h"
++#include "clk-mmio-mux.h"
++#include <dt-bindings/clock/rtk,clock-rtd129x.h>
++
++static DEFINE_SPINLOCK(clk_div_lock);
++
++#define _D(_rate, _div, _val) \
++{ \
++	.rate = _rate, \
++	.div = _div, \
++	.val = _val, \
++}
++
++#define _NF(_rate, _n, _f) \
++{ \
++	.rate = _rate, \
++	.mask = 0x7FFFF, \
++	.val = ((_n) << 11) | (_f), \
++}
++
++#define _MNO(_rate, _m, _n, _o) \
++{ \
++	.rate = _rate, \
++	.mask = 0x63FF0, \
++	.val = ((_m) << 4) | ((_n) << 12) | ((_o) << 17), \
++}
++
++static const struct div_table scpu_div_tbl[] = {
++	_D(1000000000, 1, 1),
++	_D(500000000, 2, 2),
++	_D(250000000, 4, 3),
++	/* mapped for the case when reg val is 0 */
++	_D(1000000000, 1, 0),
++	DIV_TABLE_END
++};
++
++static const struct freq_table scpu_tbl[] = {
++	_NF(1000000000, 34,   75),
++	_NF(1100000000, 37, 1517),
++	_NF(1200000000, 41,  910),
++	_NF(1300000000, 45,  303),
++	_NF(1400000000, 48, 1745),
++	_NF(1500000000, 52, 1137),
++	_NF(1600000000, 56,  531),
++	_NF(1800000000, 63, 1365),
++	/* special cases */
++	_NF(1200000000, 41, 1024),
++	_NF(1300000000, 45, 1024),
++	_NF(1503000000, 48, 1744),
++	FREQ_TABLE_END
++};
++
++static struct clk_pll_div pll_scpu = {
++	.div_offset = 0x30,
++	.div_shift  = 7,
++	.div_width  = 2,
++	.div_tbl = scpu_div_tbl,
++	.lock = &clk_div_lock,
++	.clkp = {
++		.flags = CLK_PLL_REGMAP_BYPASS | CLK_PLL_LSM_STEP_HIGH |
++			CLK_PLL_DIV_WORKAROUND,
++		.ssc_offset = 0x500,
++		.pll_offset = 0x504,
++		.rdy_offset = 0x51c,
++		.pow_offset = CLK_OFFSET_INVALID,
++		.freq_tbl = scpu_tbl,
++		.base.hw.init = &(struct clk_init_data) {
++			.name = "pll_scpu",
++			.ops = &clk_pll_div_ops,
++			.parent_names = (const char *[]){ "osc27M" },
++			.num_parents = 1,
++			.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
++		},
++	},
++};
++
++static const struct freq_table bus_tbl[] = {
++	_NF(200000000,  4,  835),
++	_NF(243000000,  6,    0),
++	_NF(256000000,  6, 1024),
++	_NF(256000000,  6,  986),
++	_NF(257000000,  6, 1061),
++	_NF(459000000, 14,    0),
++	_NF(486000000, 15,    0),
++	_NF(482000000, 14, 1744),
++	_NF(513000000, 16,    0),
++	_NF(540000000, 17,    0),
++	FREQ_TABLE_END
++};
++
++static struct clk_pll pll_bus = {
++	.ssc_offset = 0x520,
++	.pll_offset = 0x524,
++	.rdy_offset = 0x53c,
++	.pow_offset = CLK_OFFSET_INVALID,
++	.freq_tbl = bus_tbl,
++	.base.hw.init = &(struct clk_init_data) {
++		.name = "pll_bus",
++		.ops = &clk_pll_ops,
++		.parent_names = (const char *[]){ "osc27M" },
++		.num_parents = 1,
++		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
++	},
++};
++
++static struct clk_fixed_factor pll_bus_div2 = {
++	.div = 2,
++	.mult = 1,
++	.hw.init = &(struct clk_init_data) {
++		.name = "pll_bus_div2",
++		.ops = &clk_fixed_factor_ops,
++		.parent_names = (const char *[]){ "pll_bus" },
++		.num_parents = 1,
++		.flags = 0,
++	},
++};
++
++static struct clk_mmio_mux clk_sys = {
++	.mux_offset = 0x30,
++	.mask = BIT(1) - 1,
++	.shift = 0,
++	.lock = &clk_div_lock,
++	.base.hw.init = &(struct clk_init_data) {
++		.name = "clk_sys",
++		.ops = &clk_mmio_mux_ops,
++		.parent_names = (const char *[]){
++			"pll_bus",
++			"pll_bus_div2",
++		},
++		.num_parents = 2,
++		.flags = 0,
++	},
++};
++
++static struct clk_mmio_mux clk_sys_sb2 = {
++	.mux_offset = 0x18,
++	.mask = BIT(1) - 1,
++	.shift = 0,
++	.base.hw.init = &(struct clk_init_data) {
++		.name = "clk_sys_sb2",
++		.ops = &clk_mmio_mux_ops,
++		.parent_names = (const char *[]){
++			"clk_sys",
++			"osc27M",
++		},
++		.num_parents = 2,
++		.flags = 0,
++	},
++};
++
++static int clk_sys_sb2_notifier(struct notifier_block *nb, unsigned long action,
++	void *data)
++{
++	struct clk_hw *hw = &clk_sys_sb2.base.hw, *phw = NULL;
++
++	switch (action) {
++	case PRE_RATE_CHANGE:
++		phw = clk_hw_get_parent_by_index(hw, 1);
++		break;
++
++	case POST_RATE_CHANGE:
++	case ABORT_RATE_CHANGE:
++		phw = clk_hw_get_parent_by_index(hw, 0);
++		break;
++	}
++
++	if (phw)
++		clk_set_parent(hw->clk, phw->clk);
++	return NOTIFY_OK;
++}
++
++static struct notifier_block clk_sys_sb2_nb = {
++	.notifier_call = clk_sys_sb2_notifier,
++};
++
++static struct clk_pll pll_bus_h = {
++	.ssc_offset = 0x540,
++	.pll_offset = 0x544,
++	.rdy_offset = 0x55c,
++	.pow_offset = CLK_OFFSET_INVALID,
++	.freq_tbl = bus_tbl,
++	.base.hw.init = &(struct clk_init_data) {
++		.name = "pll_bus_h",
++		.ops = &clk_pll_ops,
++		.parent_names = (const char *[]){ "osc27M" },
++		.num_parents = 1,
++		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
++	},
++};
++
++static struct clk_fixed_factor clk_sysh = {
++	.div = 1,
++	.mult = 1,
++	.hw.init = &(struct clk_init_data) {
++		.name = "clk_sysh",
++		.ops = &clk_fixed_factor_ops,
++		.parent_names = (const char *[]){ "pll_bus_h" },
++		.num_parents = 1,
++		.flags = 0,
++	},
++};
++
++static const struct freq_table ddsx_tbl[] = {
++	_NF(432000000, 13, 0),
++	FREQ_TABLE_END
++};
++
++static struct clk_pll pll_ddsa = {
++	.ssc_offset = 0x560,
++	.pll_offset = 0x564,
++	.rdy_offset = 0x57C,
++	.pow_offset = 0x128,
++	.freq_tbl = ddsx_tbl,
++	.base.hw.init = &(struct clk_init_data) {
++		.name = "pll_ddsa",
++		.ops = &clk_pll_ops,
++		.parent_names = (const char *[]){ "osc27M" },
++		.num_parents = 1,
++		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
++	},
++};
++
++static struct clk_pll pll_ddsb = {
++	.ssc_offset = 0x580,
++	.pll_offset = 0x584,
++	.rdy_offset = 0x59C,
++	.pow_offset = 0x178,
++	.freq_tbl = ddsx_tbl,
++	.base.hw.init = &(struct clk_init_data) {
++		.name = "pll_ddsb",
++		.ops = &clk_pll_ops,
++		.parent_names = (const char *[]){ "osc27M" },
++		.num_parents = 1,
++		.flags = CLK_GET_RATE_NOCACHE,
++	},
++};
++
++static const struct freq_table gpu_tbl[] = {
++	_NF(300000000,  8,  227),
++	_NF(320000000,  8, 1744),
++	_NF(340000000,  9, 1213),
++	_NF(360000000, 10,  682),
++	_NF(380000000, 11,  151),
++	_NF(400000000, 11, 1668),
++	_NF(420000000, 12, 1137),
++	_NF(440000000, 13,  606),
++	_NF(460000000, 14,   75),
++	_NF(480000000, 14, 1592),
++	_NF(500000000, 15, 1061),
++	_NF(520000000, 16,  530),
++	_NF(540000000, 17,    0),
++	_NF(560000000, 17, 1517),
++	_NF(580000000, 18,  986),
++	_NF(600000000, 19,  455),
++	_NF(620000000, 19, 1972),
++	_NF(640000000, 20, 1441),
++	_NF(660000000, 21,  910),
++	_NF(680000000, 22,  379),
++	_NF(460000000, 13, 1365),
++	FREQ_TABLE_END
++};
++
++static struct clk_pll pll_gpu = {
++	.ssc_offset = 0x5a0,
++	.pll_offset = 0x5a4,
++	.rdy_offset = 0x5bc,
++	.pow_offset = 0x1c4,
++	.freq_tbl = gpu_tbl,
++	.base.hw.init = &(struct clk_init_data) {
++		.name = "pll_gpu",
++		.ops = &clk_pll_ops,
++		.parent_names = (const char *[]){ "osc27M" },
++		.num_parents = 1,
++		.flags = CLK_GET_RATE_NOCACHE,
++	},
++};
++
++static struct clk_composite_init_data clk_gpu_init = {
++	.mux_offset = CLK_OFFSET_INVALID,
++	.gate_offset = 0x0c,
++	.gate_shift = 11,
++	.parent_names =  (const char *[]){ "pll_gpu" },
++	.num_parents = 1,
++	.name = "clk_gpu",
++	.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
++};
++
++static struct freq_table ve_tbl[] = {
++	_MNO(189000000,  5, 0, 0),
++	_MNO(270000000,  8, 0, 0),
++	_MNO(405000000, 13, 0, 0),
++	_MNO(432000000, 14, 0, 0),
++	_MNO(459000000, 15, 0, 0),
++	_MNO(486000000, 16, 0, 0),
++	_MNO(513000000, 17, 0, 0),
++	_MNO(540000000, 18, 0, 0),
++	_MNO(567000000, 19, 0, 0),
++	_MNO(594000000, 20, 0, 0),
++	_MNO(648000000, 22, 0, 0),
++	_MNO(675000000, 23, 0, 0),
++	_MNO(702000000, 24, 0, 0),
++	_MNO(715000000, 51, 1, 0),
++	FREQ_TABLE_END
++};
++
++static struct clk_pll pll_ve1 = {
++	.ssc_offset = CLK_OFFSET_INVALID,
++	.pll_offset = 0x114,
++	.rdy_offset = CLK_OFFSET_INVALID,
++	.pow_offset = 0x118,
++	.freq_tbl = ve_tbl,
++	.base.hw.init = &(struct clk_init_data) {
++		.name = "pll_ve1",
++		.ops = &clk_pll_ops,
++		.parent_names = (const char *[]){ "osc27M" },
++		.num_parents = 1,
++		.flags = CLK_GET_RATE_NOCACHE,
++	},
++};
++
++static struct clk_pll pll_ve2 = {
++	.ssc_offset = CLK_OFFSET_INVALID,
++	.pll_offset = 0x1d0,
++	.rdy_offset = CLK_OFFSET_INVALID,
++	.pow_offset = 0x1d4,
++	.freq_tbl = ve_tbl,
++	.base.hw.init = &(struct clk_init_data) {
++		.name = "pll_ve2",
++		.ops = &clk_pll_ops,
++		.parent_names = (const char *[]){ "osc27M" },
++		.num_parents = 1,
++		.flags = CLK_GET_RATE_NOCACHE,
++	},
++};
++
++static struct clk_composite_init_data clk_ve1_init = {
++	.mux_offset = 0x4c,
++	.mux_width = 2,
++	.mux_shift = 0,
++	.gate_offset = 0x0c,
++	.gate_shift = 12,
++	.parent_names =  (const char *[]){
++		"clk_sysh",
++		"pll_ve1",
++		"pll_ve2",
++		"pll_ve2",
++	},
++	.num_parents = 4,
++	.name = "clk_ve1",
++	.flags = CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT |
++		CLK_SET_RATE_NO_REPARENT,
++};
++
++static struct clk_composite_init_data clk_ve2_init = {
++	.mux_offset = 0x4c,
++	.mux_width = 2,
++	.mux_shift = 2,
++	.gate_offset = 0x0c,
++	.gate_shift = 13,
++	.parent_names =  (const char *[]){
++		"clk_sysh",
++		"pll_ve1",
++		"pll_ve2",
++		"pll_ve2",
++	},
++	.num_parents = 4,
++	.name = "clk_ve2",
++	.flags = CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT |
++		CLK_SET_RATE_NO_REPARENT,
++};
++
++static struct clk_composite_init_data clk_ve3_init = {
++	.mux_offset = 0x4c,
++	.mux_width = 2,
++	.mux_shift = 4,
++	.gate_offset = 0x0c,
++	.gate_shift = 29,
++	.parent_names =  (const char *[]){
++		"clk_sysh",
++		"pll_ve1",
++		"pll_ve2",
++		"pll_ve2",
++	},
++	.num_parents = 4,
++	.name = "clk_ve3",
++	.flags = CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT |
++		CLK_SET_RATE_NO_REPARENT,
++};
++
++static __initdata struct clk_hw *clk_reg_list[] = {
++	[CC_PLL_SCPU]   = &__clk_pll_div_hw(&pll_scpu),
++	[CC_PLL_BUS]    = &__clk_pll_hw(&pll_bus),
++	[CC_PLL_BUS_H]  = &__clk_pll_hw(&pll_bus_h),
++	[CC_PLL_DDSA]   = &__clk_pll_hw(&pll_ddsa),
++	[CC_PLL_DDSB]   = &__clk_pll_hw(&pll_ddsb),
++	[CC_PLL_GPU]    = &__clk_pll_hw(&pll_gpu),
++	[CC_PLL_VE1]    = &__clk_pll_hw(&pll_ve1),
++	[CC_PLL_VE2]    = &__clk_pll_hw(&pll_ve2),
++	[CC_CLK_SYS]     = &__clk_mmio_mux_hw(&clk_sys),
++	[CC_CLK_SYS_SB2] = &__clk_mmio_mux_hw(&clk_sys_sb2),
++	[CC_PLL_BUS_DIV2] = &pll_bus_div2.hw,
++	[CC_CLK_SYSH] = &clk_sysh.hw,
++};
++
++static  __initdata struct clk_composite_init_data *composite_clks[] = {
++	[CC_CLK_GPU] = &clk_gpu_init,
++	[CC_CLK_VE1] = &clk_ve1_init,
++	[CC_CLK_VE2] = &clk_ve2_init,
++	[CC_CLK_VE3] = &clk_ve3_init,
++};
++
++int __init cc_init_clocks(struct device *dev)
++{
++	struct cc_desc *ccd = dev_get_drvdata(dev);
++	int i;
++	int ret;
++
++	for (i = 0; i < ARRAY_SIZE(clk_reg_list); i++) {
++		struct clk_hw *hw = clk_reg_list[i];
++		const char *name;
++
++		if (!hw)
++			continue;
++
++		name = hw->init->name;
++		ret = cc_init_hw(dev, ccd, i, hw);
++		if (ret) {
++			dev_err(dev, "%s: cc_init_hw() returns %d\n",
++				name, ret);
++			continue;
++		}
++	}
++
++	for (i = 0; i < ARRAY_SIZE(composite_clks); i++) {
++		struct clk_composite_init_data *data = composite_clks[i];
++		const char *name;
++
++		if (!data)
++			continue;
++
++		name = data->name;
++		ret = cc_init_composite_clk(dev, ccd, i, data);
++		if (ret) {
++			dev_err(dev, "%s: cc_init_composite_clk() returns %d\n",
++				name, ret);
++			continue;
++		}
++	}
++
++	if (clk_sys.base.hw.clk && clk_sys_sb2.base.hw.clk)
++		clk_notifier_register(clk_sys.base.hw.clk, &clk_sys_sb2_nb);
++	/* set alias */
++	clk_add_alias("jpeg", NULL, "clk_en_jpeg", NULL);
++
++	return 0;
++}
++
++int cc_clock_num(void)
++{
++	return CC_CLK_MAX;
++}
+diff --git a/drivers/clk/realtek/cgc.c b/drivers/clk/realtek/cgc.c
+new file mode 100644
+index 000000000..1fbb35c4c
+--- /dev/null
++++ b/drivers/clk/realtek/cgc.c
+@@ -0,0 +1,266 @@
++/*
++ * cgc-rtd129x.c - RTD129x clock-gate controller
++ *
++ * Copyright (C) 2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#define pr_fmt(fmt) "clk: " fmt
++
++#include <linux/slab.h>
++#include <linux/platform_device.h>
++#include <linux/of.h>
++#include <linux/of_address.h>
++#include <linux/clk.h>
++#include <linux/clkdev.h>
++#include <linux/clk-provider.h>
++#include <linux/bitops.h>
++#include <linux/pm.h>
++#include <linux/suspend.h>
++#include <soc/realtek/rtk_mmio.h>
++#include "common.h"
++#include "clk-mmio-gate.h"
++
++#define MAX_CLOCK_GATES  32
++
++struct cgc_desc {
++	struct device *dev;
++	unsigned int flags;
++
++	/* name list */
++	const char *names[MAX_CLOCK_GATES];
++	int num_names;
++
++	/* pm */
++	unsigned int pm_mask;
++	unsigned int pm_data;
++
++	/* init data */
++	struct clk_reg_init_data init_data;
++
++	/* of clk provider */
++	struct clk_onecell_data clk_data;
++};
++
++/* flags */
++#define CGC_HW_USE_WRITE_EN  0x1
++
++static inline int has_write_en(struct cgc_desc *cgcd)
++{
++	return !!(cgcd->flags & CGC_HW_USE_WRITE_EN);
++}
++
++static int init_clk_gates(struct cgc_desc *cgcd)
++{
++	int i;
++	struct clk_onecell_data *data = &cgcd->clk_data;
++	struct device *dev = cgcd->dev;
++	struct device_node *np = dev->of_node;
++	unsigned int flags = 0;
++	unsigned int num_clks = cgcd->num_names;
++	const char *name = NULL;
++	int ret = 0;
++
++	if (has_write_en(cgcd)) {
++		flags |= CLK_MMIO_GATE_HAS_WRITE_EN;
++		num_clks *= 2;
++	}
++
++	data->clks = kcalloc(num_clks, sizeof(struct clk *), GFP_KERNEL);
++	if (!data->clks)
++		return -ENOMEM;
++	data->clk_num = num_clks;
++
++	for (i = 0; i < cgcd->num_names; i++) {
++		struct clk_mmio_gate *gate;
++		int idx = has_write_en(cgcd) ? i * 2 : i;
++		struct clk_init_data init = { 0 };
++		struct clk *clk;
++
++		name = cgcd->names[i];
++		if (!name || !name[0])
++			continue;
++
++		/* setup clk init data */
++		init.name = name;
++		init.ops = &clk_mmio_gate_ops;
++		init.flags = 0;
++		if (of_clk_is_ignore_unused(np, name))
++			init.flags |= CLK_IGNORE_UNUSED;
++
++		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
++		if  (!gate) {
++			ret = -ENOMEM;
++			break;
++		}
++
++		/* for low-level debug */
++		if (is_clk_debug_enabled()) {
++			gate->ref = of_rdbg_get_info(np, 0, 0);
++			if (gate->ref)
++				dev_err(dev, "rdbg add %s\n", name);
++		}
++
++		/* setup init data for specific clk type */
++		gate->bit_idx = idx;
++		gate->base.hw.init = &init;
++		gate->flags = flags;
++		clk_reg_init(&gate->base, &cgcd->init_data);
++
++		/* register clk */
++		clk = clk_register(NULL, &gate->base.hw);
++		if (IS_ERR(clk)) {
++			dev_err(dev, "%s: failed to register: %ld\n",
++				name, PTR_ERR(clk));
++			ret = PTR_ERR(clk);
++			break;
++		}
++		data->clks[idx] = clk;
++
++		dev_dbg(dev, "name-index=%d, clk-index=%d, clk-name=%s\n",
++			i, idx, name);
++
++		/* register clkdev */
++		clk_register_clkdev(clk, name, NULL);
++
++		/* ignore in suspend */
++		if (of_clk_is_ignore_pm(np, name))
++			continue;
++		cgcd->pm_mask |= BIT(idx);
++	}
++
++	if (ret)
++		dev_err(dev, "failed to init %s(%d): %d\n", name, i, ret);
++
++	return of_clk_add_provider(np, of_clk_src_onecell_get, data);
++}
++
++static int rtk_cgc_suspend(struct device *dev)
++{
++	struct cgc_desc *cgcd = dev_get_drvdata(dev);
++	struct clk_reg clk_reg;
++
++//#ifdef CONFIG_SUSPEND
++//	if (RTK_PM_STATE == PM_SUSPEND_STANDBY)
++//		return 0;
++//#endif
++	dev_info(dev, "[CLK] Enter %s\n", __func__);
++
++	/* create a clk_reg for read/write reg */
++	clk_reg_init(&clk_reg, &cgcd->init_data);
++	cgcd->pm_data = clk_reg_read(&clk_reg, 0);
++
++	dev_info(dev, "[CLK] Exit %s\n", __func__);
++	return 0;
++}
++
++static int rtk_cgc_resume(struct device *dev)
++{
++	struct cgc_desc *cgcd = dev_get_drvdata(dev);
++	struct clk_reg clk_reg;
++	int mask;
++	int val;
++
++//#ifdef CONFIG_SUSPEND
++//	if (RTK_PM_STATE == PM_SUSPEND_STANDBY)
++//		return 0;
++//#endif
++	dev_info(dev, "[CLK] Enter %s\n", __func__);
++
++	clk_reg_init(&clk_reg, &cgcd->init_data);
++
++	mask = cgcd->pm_mask;
++	val  = cgcd->pm_data;
++
++	if (has_write_en(cgcd)) {
++		mask |= cgcd->pm_mask << 1;
++		val  |= cgcd->pm_mask << 1;
++	}
++
++	clk_reg_update(&clk_reg, 0, mask, val);
++
++	dev_info(dev, "[CLK] Exit %s\n", __func__);
++	return 0;
++}
++
++static const struct dev_pm_ops rtk_cgc_pm_ops = {
++	.suspend_noirq = rtk_cgc_suspend,
++	.resume_noirq = rtk_cgc_resume,
++};
++
++static int rtk_cgc_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct device_node *np = dev->of_node;
++	struct cgc_desc *cgcd;
++	void __iomem *reg = NULL;
++	struct regmap *regmap;
++	int offset = 0;
++	int ret;
++
++	dev_info(&pdev->dev, "[CLK] %s\n", __func__);
++
++	cgcd = devm_kzalloc(dev, sizeof(*cgcd), GFP_KERNEL);
++	if (!cgcd)
++		return -ENOMEM;
++
++	reg = of_iomap(pdev->dev.of_node, 0);
++	regmap = of_get_rtk_mmio_regmap_with_offset(np, 0, &offset);
++	if (!reg && IS_ERR_OR_NULL(regmap)) {
++		ret =  -EINVAL;
++		goto error;
++	}
++	if (IS_ERR(regmap))
++		regmap = NULL;
++
++	if (of_find_property(np, "has-write-en", NULL))
++		cgcd->flags |= CGC_HW_USE_WRITE_EN;
++
++	cgcd->num_names = of_property_count_strings(np, "clock-output-names");
++	if (cgcd->num_names < 0)
++		return cgcd->num_names;
++	of_property_read_string_array(np, "clock-output-names",
++		cgcd->names, cgcd->num_names);
++
++	cgcd->dev = dev;
++	cgcd->init_data.reg = reg;
++	if (regmap) {
++		dev_info(&pdev->dev, "use mmio regmap\n");
++		cgcd->init_data.offset = offset;
++		cgcd->init_data.regmap = regmap;
++	}
++
++	platform_set_drvdata(pdev, cgcd);
++
++	init_clk_gates(cgcd);
++
++	return 0;
++error:
++	if (reg)
++		iounmap(reg);
++	return ret;
++}
++
++static const struct of_device_id rtk_cgc_match[] = {
++	{.compatible = "realtek,clock-gate-controller"},
++	{}
++};
++
++static struct platform_driver rtk_cgc_driver = {
++	.probe = rtk_cgc_probe,
++	.driver = {
++		.name = "rtk-cgc",
++		.of_match_table = rtk_cgc_match,
++		.pm = &rtk_cgc_pm_ops,
++	},
++};
++
++static int __init rtk_cgc_init(void)
++{
++	return platform_driver_register(&rtk_cgc_driver);
++}
++core_initcall(rtk_cgc_init);
+diff --git a/drivers/clk/realtek/clk-dummy.c b/drivers/clk/realtek/clk-dummy.c
+new file mode 100644
+index 000000000..8475440a7
+--- /dev/null
++++ b/drivers/clk/realtek/clk-dummy.c
+@@ -0,0 +1,181 @@
++/*
++ * clk-dummy.c - dummy clk
++ *
++ * Copyright (C) 2018 Realtek Semiconductor Corporation
++ * Copyright (C) 2018 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/module.h>
++#include <linux/slab.h>
++#include <linux/io.h>
++#include <linux/err.h>
++#include <linux/of.h>
++#include <linux/platform_device.h>
++#include <linux/clk-provider.h>
++
++static int clk_dummy_prepare(struct clk_hw *hw)
++{
++	return 0;
++}
++static int clk_dummy_enable(struct clk_hw *hw)
++{
++	return 0;
++}
++static void clk_dummy_disable(struct clk_hw *hw)
++{
++	return;
++}
++static void clk_dummy_unprepare(struct clk_hw *hw)
++{
++	return;
++}
++
++static const struct clk_ops clk_dummy_ops = {
++	.prepare = clk_dummy_prepare,
++	.enable = clk_dummy_enable,
++	.disable = clk_dummy_disable,
++	.unprepare = clk_dummy_unprepare,
++};
++
++struct clk_hw *clk_hw_register_dummy(struct device *dev,
++		const char *name, const char *parent_name, unsigned long flags)
++{
++	struct clk_hw *hw;
++	struct clk_init_data init;
++	int ret;
++
++	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
++	if (!hw)
++		return ERR_PTR(-ENOMEM);
++
++	init.name = name;
++	init.ops = &clk_dummy_ops;
++	init.flags = flags | CLK_IS_BASIC;
++	init.parent_names = (parent_name ? &parent_name: NULL);
++	init.num_parents = (parent_name ? 1 : 0);
++
++	hw->init = &init;
++
++	ret = clk_hw_register(dev, hw);
++	if (ret) {
++		kfree(hw);
++		hw = ERR_PTR(ret);
++	}
++
++	return hw;
++}
++EXPORT_SYMBOL_GPL(clk_hw_register_dummy);
++
++struct clk *clk_register_dummy(struct device *dev,
++		const char *name, const char *parent_name, unsigned long flags)
++{
++	struct clk_hw *hw;
++
++	hw = clk_hw_register_dummy(dev, name, parent_name, flags);
++	if (IS_ERR(hw))
++		return ERR_CAST(hw);
++	return hw->clk;
++}
++EXPORT_SYMBOL_GPL(clk_register_dummy);
++
++void clk_unregister_dummy(struct clk *clk)
++{
++	struct clk_hw *hw;
++
++	hw = __clk_get_hw(clk);
++	if (!hw)
++		return;
++
++	clk_unregister(clk);
++	kfree(hw);
++}
++EXPORT_SYMBOL_GPL(clk_unregister_dummy);
++
++void clk_hw_unregister_dummy(struct clk_hw *hw)
++{
++	clk_hw_unregister(hw);
++	kfree(hw);
++}
++EXPORT_SYMBOL_GPL(clk_hw_unregister_dummy);
++
++#if CONFIG_OF
++static struct clk *_of_clk_dummy_setup(struct device_node *node)
++{
++	struct clk *clk;
++	const char *clk_name = node->name;
++	u32 rate;
++	int ret;
++
++	if (of_property_read_u32(node, "clock-frequency", &rate))
++		return ERR_PTR(-EIO);
++
++	of_property_read_string(node, "clock-output-names", &clk_name);
++
++	clk = clk_register_dummy(NULL, clk_name, NULL, 0);
++	if (IS_ERR(clk))
++		return clk;
++
++	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
++	if (ret) {
++		clk_unregister(clk);
++		return ERR_PTR(ret);
++	}
++
++	return clk;
++}
++
++/**
++ * of_clk_dummy_setup() - Setup function for simple fixed rate clock
++ */
++void __init of_clk_dummy_setup(struct device_node *node)
++{
++	_of_clk_dummy_setup(node);
++}
++CLK_OF_DECLARE(clk_dummy, "dummy-clock", of_clk_dummy_setup);
++
++static int of_clk_dummy_remove(struct platform_device *pdev)
++{
++	struct clk *clk = platform_get_drvdata(pdev);
++
++	clk_unregister_dummy(clk);
++
++	return 0;
++}
++
++static int of_clk_dummy_probe(struct platform_device *pdev)
++{
++	struct clk *clk;
++
++	/*
++	 * This function is not executed when of_clk_dummy_setup
++	 * succeeded.
++	 */
++	clk = _of_clk_dummy_setup(pdev->dev.of_node);
++	if (IS_ERR(clk))
++		return PTR_ERR(clk);
++
++	platform_set_drvdata(pdev, clk);
++
++	return 0;
++}
++
++static const struct of_device_id of_clk_dummy_ids[] = {
++	{ .compatible = "dummy-clock" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, of_clk_dummy_ids);
++
++static struct platform_driver of_clk_dummy_driver = {
++	.driver = {
++		.name = "of_clk_dummy",
++		.of_match_table = of_clk_dummy_ids,
++	},
++	.probe = of_clk_dummy_probe,
++	.remove = of_clk_dummy_remove,
++};
++builtin_platform_driver(of_clk_dummy_driver);
++#endif
+diff --git a/drivers/clk/realtek/clk-mmio-gate.c b/drivers/clk/realtek/clk-mmio-gate.c
+new file mode 100644
+index 000000000..9cc514597
+--- /dev/null
++++ b/drivers/clk/realtek/clk-mmio-gate.c
+@@ -0,0 +1,96 @@
++/*
++ * Copyright (C) 2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/slab.h>
++#include <linux/clk-provider.h>
++#include "clk-mmio-gate.h"
++
++static int clk_mmio_gate_enable(struct clk_hw *hw)
++{
++	struct clk_mmio_gate *g = to_clk_mmio_gate(hw);
++	unsigned long flags = 0;
++	unsigned int mask;
++	unsigned int val;
++
++	if (g->lock)
++		spin_lock_irqsave(g->lock, flags);
++
++	mask = BIT(g->bit_idx);
++	val  = BIT(g->bit_idx);
++
++	if (g->flags & CLK_MMIO_GATE_HAS_WRITE_EN) {
++		mask |= BIT(g->bit_idx + 1);
++		val  |= BIT(g->bit_idx + 1);
++	}
++
++	clk_reg_update(&g->base, g->gate_offset, mask, val);
++
++	if (g->lock)
++		spin_unlock_irqrestore(g->lock, flags);
++
++	rdbg_update_ref(g->ref, BIT(g->bit_idx), __func__);
++
++	return 0;
++}
++
++static void clk_mmio_gate_disable(struct clk_hw *hw)
++{
++	struct clk_mmio_gate *g = to_clk_mmio_gate(hw);
++	unsigned long flags = 0;
++	unsigned int mask;
++	unsigned int val;
++
++	if (g->lock)
++		spin_lock_irqsave(g->lock, flags);
++
++	mask = BIT(g->bit_idx);
++	val  = 0;
++
++	if (g->flags & CLK_MMIO_GATE_HAS_WRITE_EN) {
++		mask |= BIT(g->bit_idx + 1);
++		val  |= BIT(g->bit_idx + 1);
++	}
++
++	clk_reg_update(&g->base, g->gate_offset, mask, val);
++
++	if (g->lock)
++		spin_unlock_irqrestore(g->lock, flags);
++
++	rdbg_update_ref(g->ref, BIT(g->bit_idx), __func__);
++}
++
++static void clk_mmio_gate_disable_unused(struct clk_hw *hw)
++{
++	pr_info("%s: %s\n", __func__, __clk_get_name(hw->clk));
++	clk_mmio_gate_disable(hw);
++}
++
++static int clk_mmio_gate_is_enabled(struct clk_hw *hw)
++{
++	struct clk_mmio_gate *g = to_clk_mmio_gate(hw);
++	int ret;
++	unsigned long flags = 0;
++
++	if (g->lock)
++		spin_lock_irqsave(g->lock, flags);
++
++	ret = !!(clk_reg_read(&g->base, g->gate_offset) & BIT(g->bit_idx));
++
++	if (g->lock)
++		spin_unlock_irqrestore(g->lock, flags);
++
++	return ret;
++}
++
++const struct clk_ops clk_mmio_gate_ops = {
++	.enable = clk_mmio_gate_enable,
++	.disable = clk_mmio_gate_disable,
++	.disable_unused = clk_mmio_gate_disable_unused,
++	.is_enabled = clk_mmio_gate_is_enabled,
++};
+diff --git a/drivers/clk/realtek/clk-mmio-gate.h b/drivers/clk/realtek/clk-mmio-gate.h
+new file mode 100644
+index 000000000..036efd3d9
+--- /dev/null
++++ b/drivers/clk/realtek/clk-mmio-gate.h
+@@ -0,0 +1,50 @@
++/*
++ * clk-mmio-gate.h - gating clock with regmap
++ *
++ * Copyright (C) 2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++#ifndef __CLK_REALTEK_CLK_MMIO_GATE_H
++#define __CLK_REALTEK_CLK_MMIO_GATE_H
++
++#include "common.h"
++#include <soc/realtek/rdbg.h>
++
++/**
++ * struct clk_mmio_gate - gating clock with regmap
++ *
++ * @base:        handle for common, hw and register access interfaces
++ * @gate_offset: offset from base register
++ * @bit_idx:     bit index of gating bit field
++ * @shift:       shift to gating bit field
++ * @lock:        register lock
++ * @flags:       clk_mmio_gate flags
++ * @ref:         debug reference
++ *
++ * Flags:
++ * CLK_MMIO_GATE_HAS_WRITE_EN - set write_en bit in (bit_idx+1)
++ */
++struct clk_mmio_gate {
++	struct clk_reg base;
++	int gate_offset;
++	u8 bit_idx;
++	spinlock_t *lock;
++	unsigned int flags;
++
++	struct rdbg_info *ref;
++};
++
++#define to_clk_mmio_gate(_hw) \
++	container_of(to_clk_reg(_hw), struct clk_mmio_gate, base)
++#define __clk_mmio_gate_hw(_ptr) __clk_reg_hw(&(_ptr)->base)
++
++/* clk_mmio_gate flags */
++#define CLK_MMIO_GATE_HAS_WRITE_EN 0x1
++
++extern const struct clk_ops clk_mmio_gate_ops;
++
++#endif
+diff --git a/drivers/clk/realtek/clk-mmio-mux.c b/drivers/clk/realtek/clk-mmio-mux.c
+new file mode 100644
+index 000000000..b0d7ecfa4
+--- /dev/null
++++ b/drivers/clk/realtek/clk-mmio-mux.c
+@@ -0,0 +1,69 @@
++/*
++ * Copyright (C) 2011 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
++ * Copyright (C) 2011 Richard Zhao, Linaro <richard.zhao@linaro.org>
++ * Copyright (C) 2011-2012 Mike Turquette, Linaro Ltd <mturquette@linaro.org>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * Simple multiplexer clock implementation
++ */
++
++#include <linux/clk.h>
++#include <linux/clk-provider.h>
++#include <linux/module.h>
++#include <linux/slab.h>
++#include <linux/io.h>
++#include <linux/err.h>
++#include "clk-mmio-mux.h"
++
++static u8 clk_mmio_mux_get_parent(struct clk_hw *hw)
++{
++	struct clk_mmio_mux *mux = to_clk_mmio_mux(hw);
++	int num_parents = clk_hw_get_num_parents(hw);
++	u32 val;
++	unsigned long flags = 0;
++
++	if (mux->lock)
++		spin_lock_irqsave(mux->lock, flags);
++
++	val = clk_reg_read(&mux->base, mux->mux_offset) >> mux->shift;
++	if (mux->lock)
++		spin_unlock_irqrestore(mux->lock, flags);
++
++	val &= mux->mask;
++	if (val >= num_parents)
++		return -EINVAL;
++
++	return val;
++}
++
++static int clk_mmio_mux_set_parent(struct clk_hw *hw, u8 index)
++{
++	struct clk_mmio_mux *mux = to_clk_mmio_mux(hw);
++	unsigned long flags = 0;
++
++	if (mux->lock)
++		spin_lock_irqsave(mux->lock, flags);
++
++	clk_reg_update(&mux->base, mux->mux_offset, mux->mask << mux->shift,
++		index << mux->shift);
++
++	if (mux->lock)
++		spin_unlock_irqrestore(mux->lock, flags);
++	return 0;
++}
++
++const struct clk_ops clk_mmio_mux_ops = {
++	.get_parent = clk_mmio_mux_get_parent,
++	.set_parent = clk_mmio_mux_set_parent,
++	.determine_rate = __clk_mux_determine_rate,
++};
++EXPORT_SYMBOL_GPL(clk_mmio_mux_ops);
++
++const struct clk_ops clk_mmio_mux_ro_ops = {
++	.get_parent = clk_mmio_mux_get_parent,
++};
++EXPORT_SYMBOL_GPL(clk_mmio_mux_ro_ops);
++
+diff --git a/drivers/clk/realtek/clk-mmio-mux.h b/drivers/clk/realtek/clk-mmio-mux.h
+new file mode 100644
+index 000000000..e52013e52
+--- /dev/null
++++ b/drivers/clk/realtek/clk-mmio-mux.h
+@@ -0,0 +1,39 @@
++/*
++ * clk-mmio-mux.h - multiplexer clock with regmap
++ *
++ * Copyright (C) 2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++#ifndef __CLK_REALTEK_CLK_MMIO_MUX_H
++#define __CLK_REALTEK_CLK_MMIO_MUX_H
++
++#include "common.h"
++
++/**
++ * struct clk_mmio_mux - multiplexer clock with regmap
++ *
++ * @base:       handle for common, hw and register access interfaces
++ * @mux_offset: offset from base register
++ * @mask:       mask of multiplexer bit field
++ * @shift:      shift to multiplexer bit field
++ * @lock:       register lock
++ */
++struct clk_mmio_mux {
++	struct clk_reg base;
++	int mux_offset;
++	unsigned int mask;
++	unsigned int shift;
++	spinlock_t *lock;
++};
++
++#define to_clk_mmio_mux(_hw) \
++	container_of(to_clk_reg(_hw), struct clk_mmio_mux, base)
++#define __clk_mmio_mux_hw(_ptr) __clk_reg_hw(&(_ptr)->base)
++
++extern const struct clk_ops clk_mmio_mux_ops;
++
++#endif
+diff --git a/drivers/clk/realtek/clk-pll.c b/drivers/clk/realtek/clk-pll.c
+new file mode 100644
+index 000000000..bd3e18790
+--- /dev/null
++++ b/drivers/clk/realtek/clk-pll.c
+@@ -0,0 +1,377 @@
++/*
++ * clk-pll.c - Realtek clk-pll & clk-pll-div implementation
++ *
++ * Copyright (C) 2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/io.h>
++#include <linux/slab.h>
++#include <linux/clk-provider.h>
++#include <linux/clk.h>
++#include <linux/spinlock.h>
++#include <linux/delay.h>
++#include <linux/debugfs.h>
++#include "common.h"
++#include "clk-pll.h"
++
++#define DEFUALT_OSC_RATE  27000000
++#define DEFAULT_OC_EN_DISABLE_RATE 199999999
++static unsigned long default_osc_rate = DEFUALT_OSC_RATE;
++
++static int clk_pll_debugfs_u64_set(void *data, u64 val)
++{
++	struct clk_hw *hw = data;
++
++	clk_set_rate(hw->clk, (unsigned long)(val));
++	return 0;
++}
++
++static int clk_pll_debugfs_u64_get(void *data, u64 *val)
++{
++	struct clk_hw *hw = data;
++
++	*val = (u64)clk_get_rate(hw->clk);
++	return 0;
++}
++
++DEFINE_SIMPLE_ATTRIBUTE(clk_pll_rate_op, clk_pll_debugfs_u64_get,
++	clk_pll_debugfs_u64_set, "%llu\n");
++
++void clk_pll_debug_init(struct clk_hw *hw, struct dentry *dentry)
++{
++	debugfs_create_file("rtk_clk_rate", 0644, dentry, hw, &clk_pll_rate_op);
++}
++
++static const struct freq_table *ftbl_find_by_rate(const struct freq_table *ftbl,
++	unsigned long rate)
++{
++	unsigned long best_rate = 0;
++	const struct freq_table *best = NULL;
++
++	for ( ; !IS_FREQ_TABLE_END(ftbl); ftbl++) {
++		if (ftbl->rate == rate)
++			return ftbl;
++
++		if (ftbl->rate > rate)
++			continue;
++
++		if ((rate - best_rate) > (rate - ftbl->rate)) {
++			best_rate = ftbl->rate;
++			best = ftbl;
++		}
++	}
++
++	if (best)
++		pr_debug("%s: closest rate  for %lu is %lu\n", __func__,
++			rate, best->rate);
++
++	return best;
++}
++
++static const struct freq_table *ftbl_find_by_val(const struct freq_table *ftbl,
++	unsigned long value)
++{
++	while (!IS_FREQ_TABLE_END(ftbl)) {
++		if (ftbl->val == (value & ftbl->mask))
++			return ftbl;
++		ftbl++;
++	}
++	return NULL;
++};
++
++static const struct div_table *dtbl_find_by_rate(const struct div_table *dtbl,
++	unsigned long rate)
++{
++	while (!IS_DIV_TABLE_END(dtbl)) {
++		if (rate >= dtbl->rate)
++			return dtbl;
++		dtbl++;
++	}
++	return NULL;
++}
++
++static const struct div_table *dtbl_find_by_val(const struct div_table *dtbl,
++	unsigned int val)
++{
++	while (!IS_DIV_TABLE_END(dtbl)) {
++		if (val == dtbl->val)
++			return dtbl;
++		dtbl++;
++	}
++	return NULL;
++}
++
++static int clk_pll_prepare(struct clk_hw *hw)
++{
++	struct clk_pll *pll = to_clk_pll(hw);
++
++	pr_debug("%s: %s\n", clk_hw_get_name(hw), __func__);
++
++	pll->status |= CLK_PLL_PREPARED;
++	__hw_set_pow(pll, 1);
++
++	return 0;
++}
++
++static void clk_pll_unprepare(struct clk_hw *hw)
++{
++	struct clk_pll *pll = to_clk_pll(hw);
++
++	pr_debug("%s: %s\n", clk_hw_get_name(hw), __func__);
++
++	pll->status &= ~CLK_PLL_PREPARED;
++	__hw_set_pow(pll, 0);
++}
++
++static void clk_pll_unprepare_unused(struct clk_hw *hw)
++{
++	pr_info("%s: %s\n", clk_hw_get_name(hw), __func__);
++	clk_pll_unprepare(hw);
++}
++
++static int clk_pll_is_prepared(struct clk_hw *hw)
++{
++	struct clk_pll *pll = to_clk_pll(hw);
++	int val;
++
++	val = __hw_is_pow(pll);
++	if (val < 0)
++		val = !!(pll->status & CLK_PLL_PREPARED);
++	return val;
++}
++
++static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
++	unsigned long *parent_rate)
++{
++	struct clk_pll *pll = to_clk_pll(hw);
++	const struct freq_table *ftblv = NULL;
++
++	WARN_ON_ONCE(*parent_rate != default_osc_rate);
++
++	ftblv = ftbl_find_by_rate(pll->freq_tbl, rate);
++	if (!ftblv)
++		return 0;
++
++	return ftblv->rate;
++}
++
++static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
++	unsigned long parent_rate)
++{
++	struct clk_pll *pll = to_clk_pll(hw);
++	const char *clk_name = clk_hw_get_name(hw);
++	unsigned long flags = 0;
++	const struct freq_table *ftblv;
++	unsigned int val;
++
++	WARN_ON_ONCE(parent_rate != default_osc_rate);
++
++	flags = clk_pll_lock(pll);
++	val = clk_reg_read(&pll->base, pll->pll_offset);
++	clk_pll_unlock(pll, flags);
++
++	/* if oc_en is not set */
++	if (__hw_is_oc(pll) == 0)
++		return DEFAULT_OC_EN_DISABLE_RATE;
++
++	ftblv = ftbl_find_by_val(pll->freq_tbl, val);
++	WARN(!ftblv, "%s: %s: ftbl_find_by_val() failed with %08x\n",
++		clk_name, __func__, val);
++
++	return ftblv ? ftblv->rate : 0;
++}
++
++static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
++	unsigned long parent_rate)
++{
++	struct clk_pll *pll = to_clk_pll(hw);
++	const char *clk_name = clk_hw_get_name(hw);
++	unsigned long flags = 0;
++	const struct freq_table *freq;
++	int ret = 0;
++
++	WARN_ON_ONCE(parent_rate != default_osc_rate);
++
++	freq = ftbl_find_by_rate(pll->freq_tbl, rate);
++	if (!freq) {
++		pr_err("%s: %s: ftbl_find_by_rate() failed with %lu\n",
++			clk_name, __func__, rate);
++		return -EINVAL;
++	}
++
++	pr_debug("%s: %s: set rate=%ld, val=0x%08x, mask=0x%08x\n",
++		clk_name, __func__, freq->rate, freq->val, freq->mask);
++
++	flags = clk_pll_lock(pll);
++	__hw_set_rate_prepare(pll);
++	clk_reg_update(&pll->base, pll->pll_offset, freq->mask, freq->val);
++	ret = __hw_set_rate_done(pll);
++	clk_pll_unlock(pll, flags);
++
++	if (ret == -ETIME)
++		pr_warn("%s: %s: __hw_set_rate_done() returns timeout\n",
++			clk_name, __func__);
++
++	return 0;
++}
++
++const struct clk_ops clk_pll_ops = {
++	.prepare          = clk_pll_prepare,
++	.unprepare        = clk_pll_unprepare,
++	.unprepare_unused = clk_pll_unprepare_unused,
++	.is_prepared      = clk_pll_is_prepared,
++	.round_rate       = clk_pll_round_rate,
++	.recalc_rate      = clk_pll_recalc_rate,
++	.set_rate         = clk_pll_set_rate,
++	.debug_init       = clk_pll_debug_init,
++};
++
++static long clk_pll_div_round_rate(struct clk_hw *hw, unsigned long rate,
++	unsigned long *parent_rate)
++{
++	struct clk_pll_div *plld = to_clk_pll_div(hw);
++	const struct div_table *dtblv;
++
++	WARN_ON_ONCE(*parent_rate != default_osc_rate);
++
++	/* lookup div in dtbl */
++	dtblv = dtbl_find_by_rate(plld->div_tbl, rate);
++	if (!dtblv)
++		return 0;
++
++	rate *= dtblv->div;
++	rate = clk_pll_round_rate(hw, rate, parent_rate);
++	return rate / dtblv->div;
++}
++
++static unsigned long clk_pll_div_recalc_rate(struct clk_hw *hw,
++	unsigned long parent_rate)
++{
++	struct clk_pll_div *plld = to_clk_pll_div(hw);
++	const char *clk_name = clk_hw_get_name(hw);
++	unsigned long rate;
++	const struct div_table *dtblv;
++	unsigned int val;
++
++	WARN_ON_ONCE(parent_rate != default_osc_rate);
++
++	rate = clk_pll_recalc_rate(hw, parent_rate);
++
++	val = hw_get_div_val(plld);
++	dtblv = dtbl_find_by_val(plld->div_tbl, val);
++	if (!dtblv)
++		return 0;
++
++	rate /= dtblv->div;
++
++	pr_debug("%s: %s: current pll_rate=%lu, div=%d, reg_val=0x%x\n",
++		clk_name, __func__, rate, dtblv->div, val);
++
++	return rate;
++}
++
++static int clk_pll_div_set_rate(struct clk_hw *hw, unsigned long rate,
++	unsigned long parent_rate)
++{
++	struct clk_pll_div *plld = to_clk_pll_div(hw);
++	const char *clk_name = clk_hw_get_name(hw);
++	unsigned long flags;
++	const struct div_table *ndtblv, *cdtblv;
++	unsigned long target;
++	unsigned int cur_d;
++
++	WARN_ON_ONCE(parent_rate != default_osc_rate);
++
++	pr_debug("%s: %s: set rate=%lu\n", clk_name, __func__, rate);
++
++	/* find next in the dtbl */
++	ndtblv = dtbl_find_by_rate(plld->div_tbl, rate);
++	if (!ndtblv) {
++		pr_warn("%s: %s: can't find dtblv for %ld\n", clk_name,
++			__func__, rate);
++		return -EINVAL;
++	}
++
++	target = rate * ndtblv->div;
++
++	/* find current in the dtbl */
++	cur_d = hw_get_div_val(plld);
++	cdtblv = dtbl_find_by_val(plld->div_tbl, cur_d);
++	if (!cdtblv)
++		return -EINVAL;
++	pr_debug("%s: %s: currnet div=%d, reg_val=0x%x\n", clk_name,
++		__func__, cdtblv->div, cdtblv->val);
++
++	flags = clk_pll_div_lock(plld);
++
++	/* workaround to prevent glitch */
++	if (IS_ENABLED(CONFIG_COMMON_CLK_RTD129X)) {
++		struct clk_pll *pll = &plld->clkp;
++
++		if ((pll->flags & CLK_PLL_DIV_WORKAROUND) &&
++			ndtblv->val != cdtblv->val &&
++			(ndtblv->val == 1 || cdtblv->val == 1)) {
++			clk_pll_set_rate(hw, 1000000000, parent_rate);
++
++			pr_debug("%s: %s: set div=%d, reg_val=0x%x\n",
++				clk_name, __func__, ndtblv->div, ndtblv->val);
++			hw_set_div_val(plld, ndtblv->val);
++			cdtblv = ndtblv;
++		}
++	}
++
++	if (ndtblv->div > cdtblv->div) {
++		pr_debug("%s: %s: set div=%d, reg_val=0x%x\n",
++			clk_name, __func__, ndtblv->div, ndtblv->val);
++		hw_set_div_val(plld, ndtblv->val);
++	}
++
++	clk_pll_set_rate(hw, target, parent_rate);
++
++	if (ndtblv->div < cdtblv->div) {
++		pr_debug("%s: %s: set div=%d, reg_val=0x%x\n",
++			clk_name, __func__, ndtblv->div, ndtblv->val);
++		hw_set_div_val(plld, ndtblv->val);
++	}
++
++	clk_pll_div_unlock(plld, flags);
++
++	return 0;
++}
++
++const struct clk_ops clk_pll_div_ops = {
++	.recalc_rate = clk_pll_div_recalc_rate,
++	.round_rate  = clk_pll_div_round_rate,
++	.set_rate    = clk_pll_div_set_rate,
++	.debug_init  = clk_pll_debug_init,
++};
++
++int clk_pll_init(struct clk_hw *hw)
++{
++	const struct clk_init_data *init = hw->init;
++	struct clk_pll *pll = to_clk_pll(hw);
++
++	if (init->ops != &clk_pll_ops && init->ops != &clk_pll_div_ops)
++		return -EINVAL;
++
++	if (pll->flags & CLK_PLL_REGMAP_BYPASS)
++		pll->base.regmap = NULL;
++
++#ifndef CONFIG_COMMON_CLK_RTD119X
++	if (pll->flags & CLK_PLL_LSM_STEP_HIGH && SSC_VALID(pll)) {
++		unsigned int mask = 0x1ff << 17;
++		unsigned int val = 0x1ff << 17;
++
++		clk_reg_update(&pll->base, pll->ssc_offset + 8, mask, val);
++	}
++
++	// TODO: 119x ver
++#endif
++	return 0;
++}
++
+diff --git a/drivers/clk/realtek/clk-pll.h b/drivers/clk/realtek/clk-pll.h
+new file mode 100644
+index 000000000..cc35a7ff4
+--- /dev/null
++++ b/drivers/clk/realtek/clk-pll.h
+@@ -0,0 +1,340 @@
++/*
++ * clk-pll.h - pll clock with regmap
++ *
++ * Copyright (C) 2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++#ifndef __CLK_REALTEK_CLK_PLL_H
++#define __CLK_REALTEK_CLK_PLL_H
++
++#include "common.h"
++
++/**
++ * struct freq_table - clock frequency table
++ *
++ * @val:  register valute
++ * @mask: mask to apply value to register
++ * @rate: frequency
++ */
++struct freq_table {
++	unsigned int val;
++	unsigned int mask;
++	unsigned long rate;
++};
++
++#define FREQ_TABLE_END { .rate = 0 }
++#define IS_FREQ_TABLE_END(_f) ((_f)->rate == 0)
++
++/**
++ * struct div_table - clock divisor table
++ *
++ * @rate: rate for divisor selection. When target rate is greater-equal than
++ *     the rate, using the divisor.
++ * @div:  divisor
++ * @val:  register value
++ */
++struct div_table {
++	unsigned long rate;
++	unsigned int div;
++	unsigned int val;
++};
++
++#define DIV_TABLE_END   { .rate = 0 }
++#define IS_DIV_TABLE_END(_d) ((_d)->rate == 0)
++
++/**
++ * struct clk_pll - pll clock with regmap. Using a frequency table to lookup
++ * for frequency.
++ *
++ * @base:       handle for common, hw and register access interface
++ * @pll_offset: offset of register to set pll rate
++ * @freq_table: frequency table
++ * @ssc_offset: offset of ssc register
++ * @rdy_offset: offset for checking the pll is stable
++ * @lock:       register lock
++ * @flags:      clk_pll flags
++ * @status:     clk_pll status
++ *
++ * Flags:
++ * CLK_PLL_REGMAP_BYPASS  - (deprecated) always use direct register access.
++ *     Sometime the register access is insecure.
++ * CLK_PLL_LSM_STEP_HIGH  - faster pll rate adjustment
++ * CLK_PLL_DIV_WORKAROUND - (kylin) workaround for clk_pll_div
++ *
++ * Status:
++ * CLK_PLL_PREPARED - indicate the pll is prepared
++ */
++struct clk_pll {
++	struct clk_reg base;
++
++	const struct freq_table *freq_tbl;
++	int pll_offset;
++	int pow_offset;
++#if defined(CONFIG_COMMON_CLK_RTD129X) || defined(CONFIG_COMMON_CLK_RTD139X) \
++	|| defined(CONFIG_COMMON_CLK_RTD16XX)
++	int ssc_offset;
++	int rdy_offset;
++#endif
++	spinlock_t *lock;
++
++	unsigned int flags;
++	unsigned int status;
++};
++
++#define to_clk_pll(_hw) container_of(to_clk_reg(_hw), struct clk_pll, base)
++#define __clk_pll_hw(_ptr)  __clk_reg_hw(&(_ptr)->base)
++
++/* clk_pll flags */
++#define CLK_PLL_REGMAP_BYPASS          BIT(0)
++#define CLK_PLL_LSM_STEP_HIGH          BIT(1)
++#define CLK_PLL_DIV_WORKAROUND         BIT(2)
++
++/* clk_pll status */
++#define CLK_PLL_PREPARED               BIT(0)
++
++/* clk_pll helper macros & functions */
++#define SSC_VALID(_pll) CLK_OFFSET_IS_VALID((_pll)->ssc_offset)
++#define RDY_VALID(_pll) CLK_OFFSET_IS_VALID((_pll)->rdy_offset)
++#define POW_VALID(_pll) CLK_OFFSET_IS_VALID((_pll)->pow_offset)
++
++static inline unsigned long clk_pll_lock(struct clk_pll *pll)
++{
++	unsigned long flags = 0;
++
++	if (pll->lock)
++		spin_lock_irqsave(pll->lock, flags);
++	return flags;
++}
++
++static inline void clk_pll_unlock(struct clk_pll *pll, unsigned long flags)
++{
++	if (pll->lock)
++		spin_unlock_irqrestore(pll->lock, flags);
++}
++
++/**
++ * struct clk_pll_div - pll clock externion with divisor
++ *
++ * @clkp:       pll clock
++ * @div_offset: offset of divsor register
++ * @div_shift:  shift of divsor bit field
++ * @div_width:  width of divsor bit field
++ * @div_tbl:    divsor table
++ * @lock        divsor register lock
++ */
++struct clk_pll_div {
++	struct clk_pll clkp;
++	int div_offset;
++	int div_shift;
++	int div_width;
++	const struct div_table *div_tbl;
++	spinlock_t *lock;
++};
++
++#define to_clk_pll_div(_hw) \
++	container_of(to_clk_pll(_hw), struct clk_pll_div, clkp)
++#define __clk_pll_div_hw(_ptr) __clk_pll_hw(&(_ptr)->clkp)
++
++/* clk_pll_div helper functions */
++static inline unsigned long clk_pll_div_lock(struct clk_pll_div *plld)
++{
++	unsigned long flags = 0;
++
++	if (plld->lock)
++		spin_lock_irqsave(plld->lock, flags);
++	return flags;
++}
++
++static inline void clk_pll_div_unlock(struct clk_pll_div *plld,
++	unsigned long flags)
++{
++	if (plld->lock)
++		spin_unlock_irqrestore(plld->lock, flags);
++}
++
++static inline void hw_set_div_val(struct clk_pll_div *plld, unsigned int val)
++{
++	unsigned int m = (BIT(plld->div_width) - 1) << plld->div_shift;
++	unsigned int s = plld->div_shift;
++
++	clk_reg_update(&plld->clkp.base, plld->div_offset, m, val << s);
++}
++
++static inline unsigned int hw_get_div_val(struct clk_pll_div *plld)
++{
++	unsigned int m = (BIT(plld->div_width) - 1) << plld->div_shift;
++	unsigned int s = plld->div_shift;
++
++	return (clk_reg_read(&plld->clkp.base, plld->div_offset) & m) >> s;
++}
++
++extern const struct clk_ops clk_pll_ops;
++extern const struct clk_ops clk_pll_div_ops;
++int clk_pll_init(struct clk_hw *hw);
++
++#ifdef CONFIG_COMMON_CLK_RTD119X
++
++static inline void __hw_set_pow(struct clk_pll *pll, int on)
++{
++	if (!POW_VALID(pll))
++		return;
++
++	/* use clk_reg_update instead of clk_reg_write, since output
++	 * divisor (factor o) of pll_bus and pll_dcsb is placed in pow
++	 * register
++	 */
++	if (on) {
++		 clk_reg_update(&pll->base, pll->pow_offset, 0x7, 0x3);
++		 udelay(200);
++	} else {
++		 clk_reg_update(&pll->base, pll->pow_offset, 0x7, 0x4);
++	}
++}
++
++static inline int __hw_is_pow(struct clk_pll *pll)
++{
++	unsigned int val;
++
++	if (!POW_VALID(pll))
++		return -EINVAL;
++
++	val = clk_reg_read(&pll->base, pll->pow_offset);
++	return !!(val && 0x1);
++}
++
++static inline int __hw_is_oc(struct clk_pll *pll)
++{
++	unsigned int val;
++
++	if (POW_VALID(pll))
++		return -EINVAL;
++
++	val = clk_reg_read(&pll->base, pll->pll_offset);
++	return !!(val & 0x1);
++}
++
++static inline int __hw_set_rate_prepare(struct clk_pll *pll)
++{
++	return 0;
++}
++
++static inline int __hw_set_rate_done(struct clk_pll *pll)
++{
++	/* only MNO-type pll has pow reg */
++	if (POW_VALID(pll))
++		goto mno_type;
++
++	/* SCPU_PLL */
++	/* toggle oc_en */
++	clk_reg_update(&pll->base, pll->pll_offset + 0x4, 0x1, 0x0);
++	clk_reg_update(&pll->base, pll->pll_offset + 0x4, 0x1, 0x1);
++
++	return  0;
++mno_type:
++	/* MNO-type */
++
++	return 0;
++}
++
++#elif defined(CONFIG_COMMON_CLK_RTD129X) || defined(CONFIG_COMMON_CLK_RTD139X) \
++	|| defined(CONFIG_COMMON_CLK_RTD16XX)
++
++/*
++ * There are 2 types of clk pll in RTD-129X/139X/16XX
++ *
++ * type NF:
++ *  w/ pow:   pll_ddsa, pll_ddsb, pll_gpu
++ *  w/o pow:  pll_scpu, pll_bus, pll_dcsb(bus_h)
++ * type MNO:
++ *  w/ pow:   pll_ve1, pll_ve2
++ *
++ */
++static inline void __hw_set_pow(struct clk_pll *pll, int on)
++{
++	if (!POW_VALID(pll))
++		return;
++
++	if (on) {
++		 clk_reg_write(&pll->base, pll->pow_offset, 3);
++		 udelay(200);
++	} else {
++		 clk_reg_write(&pll->base, pll->pow_offset, 4);
++	}
++}
++
++static inline int __hw_is_pow(struct clk_pll *pll)
++{
++	unsigned int val;
++
++	if (!POW_VALID(pll))
++		return -EINVAL;
++
++	val = clk_reg_read(&pll->base, pll->pow_offset);
++	return !!(val && 0x1);
++}
++
++static inline int __hw_is_oc(struct clk_pll *pll)
++{
++	unsigned int val;
++
++	if (!SSC_VALID(pll))
++		return -EINVAL;
++
++	val = clk_reg_read(&pll->base, pll->ssc_offset);
++	return !!(val & 0x1);
++}
++
++static inline int __hw_set_rate_prepare(struct clk_pll *pll)
++{
++	if (!SSC_VALID(pll))
++		return -EINVAL;
++
++	/* clear oc_en */
++	clk_reg_update(&pll->base, pll->ssc_offset, 0x7, 0x4);
++
++	return 0;
++}
++
++static inline int __hw_set_rate_done(struct clk_pll *pll)
++{
++	int retry = 2000000;
++
++	/* ssc register is only valid for NF-type PLL */
++	if (!SSC_VALID(pll))
++		goto mno_done;
++
++	/* for NF-type PLLs */
++
++	/* set oc_en */
++	clk_reg_update(&pll->base, pll->ssc_offset, 0x7, 0x5);
++
++	/* wait oc_done == 1 */
++	if (!RDY_VALID(pll))
++		return -EPERM;
++	while (--retry > 0)
++		if (clk_reg_read(&pll->base, pll->rdy_offset) & BIT(20))
++			return 0;
++
++	return -ETIME;
++
++	/* for MNO-type PLLs */
++mno_done:
++#if 0
++	/*
++	 * FIXME: just add flag CLK_SET_RATE_GATE to mno-type pll, to make sure
++	 * the rate is set in correct flow for the consumer
++	 */
++	clk_reg_update(&pll->base, pll->pow_offset, 0x4, 0x0);
++	udelay(100);
++	clk_reg_update(&pll->base, pll->pow_offset, 0x4, 0x4);
++#endif
++	return 0;
++}
++
++#endif
++
++#endif /* __CLK_REALTEK_CLK_PLL_H */
+diff --git a/drivers/clk/realtek/common.c b/drivers/clk/realtek/common.c
+new file mode 100644
+index 000000000..aa833fde0
+--- /dev/null
++++ b/drivers/clk/realtek/common.c
+@@ -0,0 +1,290 @@
++/*
++ * common.c - Realtek Clock common
++ *
++ * Copyright (C) 2018 Realtek Semiconductor Corporation
++ * Copyright (C) 2018 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/clk.h>
++#include <linux/clkdev.h>
++#include <linux/clk-provider.h>
++#include <linux/device.h>
++#include <linux/init.h>
++#include <linux/pm.h>
++#include <linux/slab.h>
++#include "common.h"
++#include "clk-pll.h"
++#include "clk-mmio-gate.h"
++#include "clk-mmio-mux.h"
++
++#ifdef CONFIG_COMMON_CLK_REALTEK_DEBUG
++static bool clk_debug_enable;
++
++bool is_clk_debug_enabled(void)
++{
++	return clk_debug_enable;
++}
++
++static int __init clk_debug_enable_setup(char *__unused)
++{
++	clk_debug_enable = true;
++	return 1;
++}
++__setup("clk_debug_enable", clk_debug_enable_setup);
++#endif /* CONFIG_COMMON_CLK_REALTEK_DEBUG */
++
++#ifdef CONFIG_PM
++int clk_pm_init(struct clk *clk, struct clk_pm_data *pm_data,
++	unsigned int pm_flags)
++{
++	if (!clk)
++		return -ENOENT;
++
++	WARN(!pm_data, "no pm_data for pm");
++	if (!pm_data)
++		return -EINVAL;
++
++	pm_data->clk = clk;
++	pm_data->flags = pm_flags;
++	return 0;
++}
++
++
++int clk_pm_data_save(struct clk_pm_data *pm_data)
++{
++	struct clk *clk = pm_data->clk;
++
++	if (!clk)
++		return 0;
++
++	if (pm_data->flags & CLK_PM_SUSPEND_PARENT)
++		pm_data->parent = clk_get_parent(clk);
++
++	if (pm_data->flags & CLK_PM_SUSPEND_RATE)
++		pm_data->rate = clk_get_rate(clk);
++
++	if (pm_data->flags & CLK_PM_SUSPEND_ENABLE) {
++		pm_data->enable_cnt = __clk_get_enable_count(clk);
++
++		while (__clk_get_enable_count(clk) > 0)
++			clk_disable_unprepare(clk);
++	}
++
++	pr_debug("%s: data[f = 0x%x, p = %s, r = %lu, en_cnt = %d]\n",
++		__clk_get_name(clk), pm_data->flags,
++		__clk_get_name(pm_data->parent), pm_data->rate,
++		pm_data->enable_cnt);
++
++	return 0;
++}
++
++int clk_pm_data_restore(struct clk_pm_data *pm_data)
++{
++	struct clk *clk = pm_data->clk;
++
++	if (!clk)
++		return 0;
++
++	if (pm_data->flags & CLK_PM_SUSPEND_ENABLE) {
++		while (pm_data->enable_cnt > 0) {
++			clk_prepare_enable(clk);
++			pm_data->enable_cnt--;
++		}
++	}
++
++	if (pm_data->parent) {
++		/* clear the old parent */
++		clk_set_parent(clk, NULL);
++
++		/* restore parent */
++		clk_set_parent(clk, pm_data->parent);
++	}
++
++	if (pm_data->rate) {
++		long old;
++
++		old = clk_get_rate(clk);
++		clk_set_rate(clk, pm_data->rate);
++
++		pr_debug("%s: %ld -> %ld\n", __clk_get_name(clk),
++			old, clk_get_rate(clk));
++	}
++
++	return 0;
++}
++#endif /* CONFIG_PM */
++
++#define CC_CLK_TYPE_OTHERS     0
++#define CC_CLK_TYPE_CLK_REG    1
++#define CC_CLK_TYPE_CLK_PLL    3
++#define CC_CLK_TYPE_CLK_MUX    5
++#define CC_CLK_TYPE_CLK_GATE   7
++
++static inline int __hw_to_cc_type(struct clk_hw *hw)
++{
++	const struct clk_ops *ops = hw->init->ops;
++
++	if (ops == &clk_pll_ops || ops == &clk_pll_div_ops)
++		return CC_CLK_TYPE_CLK_PLL;
++	if (ops == &clk_mmio_mux_ops)
++		return CC_CLK_TYPE_CLK_MUX;
++	if (ops == &clk_mmio_gate_ops)
++		return CC_CLK_TYPE_CLK_GATE;
++
++	return CC_CLK_TYPE_OTHERS;
++}
++
++static inline int cc_set_clk_cell(struct cc_desc *ccd, int i, struct clk *clk)
++{
++	if (ccd->data.clks[i]) {
++		pr_warn("%s: failed to fill %s to cell %d, used by %s\n",
++			__func__,
++			__clk_get_name(clk), i,
++			__clk_get_name(ccd->data.clks[i]));
++		return -EINVAL;
++	}
++	ccd->data.clks[i] = clk;
++	return 0;
++}
++
++int cc_init_hw(struct device *dev, struct cc_desc *ccd, int cc_index,
++	struct clk_hw *hw)
++{
++	struct clk *clk;
++	struct clk_reg *reg = to_clk_reg(hw);
++	const char *name = hw->init->name;
++	int clk_type;
++	unsigned int pm_flags = 0;
++
++#ifdef CONFIG_XEN
++	if (of_clk_is_invalid(dev->of_node, name)) {
++		dev_notice(dev, "%s not in current domain\n", name);
++		return 0;
++	}
++#endif
++
++	dev_info(dev, "%s: %s\n", __func__, name);
++
++	clk_type = __hw_to_cc_type(hw);
++	switch (clk_type) {
++	case CC_CLK_TYPE_CLK_PLL:
++		clk_reg_init(reg, &ccd->init_data);
++		clk_pll_init(hw);
++		pm_flags = CLK_PM_SUSPEND_RATE;
++		break;
++
++	case CC_CLK_TYPE_CLK_MUX:
++		clk_reg_init(reg, &ccd->init_data);
++		pm_flags = CLK_PM_SUSPEND_PARENT;
++		break;
++
++	case CC_CLK_TYPE_CLK_GATE:
++		clk_reg_init(reg, &ccd->init_data);
++		pm_flags = CLK_PM_SUSPEND_ENABLE;
++		break;
++
++	case CC_CLK_TYPE_CLK_REG:
++		clk_reg_init(reg, &ccd->init_data);
++		break;
++
++	default:
++		break;
++	}
++
++	clk = clk_register(dev, hw);
++	if (IS_ERR(clk))
++		return PTR_ERR(clk);
++	clk_register_clkdev(clk, name, NULL);
++	cc_set_clk_cell(ccd, cc_index, hw->clk);
++	if (pm_flags)
++		clk_pm_init(clk, &ccd->pm_data[cc_index], pm_flags);
++	return 0;
++}
++
++static struct clk *clk_reg_create_composite_clk(struct device *dev,
++	struct clk_reg_init_data *reg,
++	struct clk_composite_init_data *init)
++{
++	struct clk_mmio_gate *gate = NULL;
++	const struct clk_ops *gate_op = NULL;
++	struct clk_mmio_mux *mux = NULL;
++	const struct clk_ops *mux_op = NULL;
++	struct clk *clk;
++
++	if (init->mux_offset != CLK_OFFSET_INVALID) {
++		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
++		mux->mux_offset = init->mux_offset;
++		mux->mask = BIT(init->mux_width) - 1;
++		mux->shift = init->mux_shift;
++
++		clk_reg_init(&mux->base, reg);
++		mux_op = &clk_mmio_mux_ops;
++	}
++
++	if (init->gate_offset != CLK_OFFSET_INVALID) {
++		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
++		gate->gate_offset = init->gate_offset;
++		gate->bit_idx = init->gate_shift;
++		gate->flags = init->gate_flags;
++
++		clk_reg_init(&gate->base, reg);
++		gate_op = &clk_mmio_gate_ops;
++
++		if (is_clk_debug_enabled()) {
++			/* parse reg from dt */
++			gate->ref = of_rdbg_get_info(dev->of_node, 0,
++				init->gate_offset);
++			if (gate->ref)
++				dev_err(dev, "rdbg add %s\n", init->name);
++		}
++	}
++
++	clk = clk_register_composite(NULL, init->name, init->parent_names,
++		init->num_parents,
++		mux ? &__clk_mmio_mux_hw(mux) : NULL, mux_op,
++		NULL, NULL,
++		gate ? &__clk_mmio_gate_hw(gate) : NULL, gate_op,
++		init->flags);
++	if (IS_ERR(clk)) {
++		kfree(mux);
++		kfree(gate);
++	}
++	return clk;
++}
++
++int cc_init_composite_clk(struct device *dev, struct cc_desc *ccd, int cc_index,
++	struct clk_composite_init_data *init)
++{
++	struct clk *clk;
++	const char *name = init->name;
++	unsigned int pm_flags = 0;
++
++#ifdef CONFIG_XEN
++	if (of_clk_is_invalid(dev->of_node, name)) {
++		dev_notice(dev, "%s not in current domain\n", name);
++		return 0;
++	}
++#endif
++
++	dev_info(dev, "%s: %s\n", __func__, name);
++
++	clk = clk_reg_create_composite_clk(dev, &ccd->init_data, init);
++	if (IS_ERR(clk))
++		return PTR_ERR(clk);
++	init->clk = clk;
++
++	clk_register_clkdev(clk, init->name, NULL);
++	cc_set_clk_cell(ccd, cc_index, clk);
++	/* init clk pm */
++	if (CLK_OFFSET_IS_VALID(init->mux_offset))
++		pm_flags |= CLK_PM_SUSPEND_PARENT;
++	if (CLK_OFFSET_IS_VALID(init->gate_offset))
++		pm_flags |=  CLK_PM_SUSPEND_ENABLE;
++	clk_pm_init(clk, &ccd->pm_data[cc_index], pm_flags);
++	return 0;
++}
++
+diff --git a/drivers/clk/realtek/common.h b/drivers/clk/realtek/common.h
+new file mode 100644
+index 000000000..8f635f457
+--- /dev/null
++++ b/drivers/clk/realtek/common.h
+@@ -0,0 +1,302 @@
++/*
++ * common.h - Realtek Clock Common
++ *
++ * Copyright (C) 2016-2018 Realtek Semiconductor Corporation
++ * Copyright (C) 2016-2018 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++#ifndef __CLK_REALTEK_COMMON_H
++#define __CLK_REALTEK_COMMON_H
++
++#include <linux/bitops.h>
++#include <linux/clk-provider.h>
++#include <linux/device.h>
++#include <linux/io.h>
++#include <linux/of.h>
++#include <linux/regmap.h>
++
++/**
++ * struct clk_reg - a clk core with hardware register access, which is provided
++ * ether a direct regsiter or a regmap register access. The regmap provides a
++ * safe register aceess, when the registers are shared by modules or firmwares.
++ *
++ * @hw:             handle between common and hardware-specific interfaces
++ * @flags:          clk_reg flags
++ * @reg:            a pointor for direct register access
++ * @regmap:         a remap for register access, which provides safe register
++ *                  aceess
++ * @offset:         the offset between @regmap and @reg
++ * @private_offset: valid if flags CLK_REG_FAST_ACCESS configured. indicates
++ *                  the bonadary of shared registers. When the offset is above
++ *                  private_offset, access the register directly, instead of
++ *                  using regmap.
++ *
++ * Flags:
++ * CLK_REG_FAST_ACCESS - use fast access
++ */
++struct clk_reg {
++	struct clk_hw hw;
++	unsigned long flags;
++	void __iomem *reg;
++	struct regmap *regmap;
++	int offset;
++	int private_offset;
++};
++
++#define to_clk_reg(_hw) container_of(_hw, struct clk_reg, hw)
++#define __clk_reg_hw(_ptr)  ((_ptr)->hw)
++
++#define CLK_REG_INIT()  {{}, 0, 0, 0, 0, 0 }
++
++/* flags */
++#define CLK_REG_FAST_ACCESS    BIT(3)
++
++
++static inline bool of_clk_is_ignore_unused(struct device_node *np,
++	const char *name)
++{
++	return of_property_match_string(np, "ignore-unused-clocks", name) >= 0;
++}
++
++static inline bool of_clk_is_ignore_pm(struct device_node *np,
++	const char *name)
++{
++	return of_property_match_string(np, "ignore-pm-clocks", name) >= 0;
++}
++
++static inline bool of_clk_is_invalid(struct device_node *np,
++	const char *name)
++{
++	return of_property_match_string(np, "invalid-clocks", name) >= 0;
++}
++
++/**
++ * struct clk_reg_init_data - init data of clk_reg
++ */
++struct clk_reg_init_data {
++	unsigned long flags;
++	void __iomem *reg;
++	struct regmap *regmap;
++	int offset;
++	int private_offset;
++};
++
++static inline void clk_reg_init(struct clk_reg *b, struct clk_reg_init_data *i)
++{
++	b->flags = i->flags;
++	b->regmap = i->regmap;
++	b->reg = i->reg;
++	b->offset = i->offset;
++	b->private_offset = i->private_offset;
++}
++
++static inline bool clk_reg_offset_is_shared(struct clk_reg *b,
++	unsigned int offset)
++{
++	if (!(b->flags & CLK_REG_FAST_ACCESS))
++		return true;
++	if ((b->offset + offset) < b->private_offset)
++		return true;
++	return false;
++}
++
++static inline void clk_reg_write(struct clk_reg *b, unsigned int offset,
++	unsigned int val)
++{
++	if (b->regmap && clk_reg_offset_is_shared(b, offset))
++		regmap_write(b->regmap, b->offset + offset, val);
++	else if (b->reg)
++		writel(val, b->reg + offset);
++	else
++		WARN_ON(1);
++}
++
++static inline unsigned int clk_reg_read(struct clk_reg *b, unsigned int offset)
++{
++	unsigned int val = 0;
++
++	if (b->regmap && clk_reg_offset_is_shared(b, offset))
++		regmap_read(b->regmap, b->offset + offset, &val);
++	else if (b->reg)
++		val = readl(b->reg + offset);
++	else
++		WARN_ON(1);
++	return val;
++}
++
++static inline void clk_reg_update(struct clk_reg *b, unsigned int offset,
++	unsigned int mask, unsigned int val)
++{
++	if (b->regmap && clk_reg_offset_is_shared(b, offset)) {
++		regmap_update_bits(b->regmap, b->offset + offset, mask, val);
++	} else if (b->reg) {
++		unsigned int rval;
++
++		rval = readl(b->reg + offset);
++		rval = (rval & ~mask) | (val & mask);
++		writel(rval, b->reg + offset);
++	} else {
++		WARN_ON(1);
++	}
++}
++
++/* offset check */
++#define CLK_OFFSET_INVALID  -1
++#define CLK_OFFSET_IS_VALID(_off)    ((_off) != CLK_OFFSET_INVALID)
++
++/**
++ * struct clk_composite_init_data - init data of clk_reg type composite clock.
++ *
++ * init data for registering an internal clk_mmio_gate
++ * @gate_offset
++ * @gate_shift
++ * @gate_flags
++ *
++ * init data for registering an internal clk_mmio_mux
++ * @mux_offset
++ * @mux_width
++ * @mux_width
++ * @parent_names
++ * @num_parents
++ *
++ * - common
++ * @flags:  clk flags
++ * @name:   name of a clk
++ * @clk:    the registered clk
++ */
++struct clk_composite_init_data {
++	int gate_offset;
++	int gate_shift;
++	unsigned int gate_flags;
++	int mux_offset;
++	int mux_width;
++	int mux_shift;
++	const char **parent_names;
++	int num_parents;
++	unsigned long flags;
++	const char *name;
++	struct clk *clk;
++};
++
++#ifdef CONFIG_COMMON_CLK_REALTEK_DEBUG
++bool is_clk_debug_enabled(void);
++#else /* !CONFIG_COMMON_CLK_REALTEK_DEBUG */
++static inline bool is_clk_debug_enabled(void)
++{
++	return false;
++}
++#endif /* CONFIG_COMMON_CLK_REALTEK_DEBUG */
++
++/**
++ * struct clk_pm_data - for saving clk pm state
++ *
++ * @clk         pointer to the struct clk
++ * @flags:      indicates the field(s) to save
++ * @parent:     saved parent for clk_mux
++ * @rate:       saved rate for clk_rate
++ * @enable_cnt: saved enable count for clk_gate
++ *
++ * Flags:
++ * CLK_PM_SUSPEND_RATE   - save clk_rate when suspending
++ * CLK_PM_SUSPEND_PARENT - save clk_parent when suspending
++ * CLK_PM_SUSPEND_ENABLE - save clk_enable_cnt when suspending
++ */
++struct clk_pm_data {
++	struct clk *clk;
++	unsigned int flags;
++	struct clk *parent;
++	unsigned long rate;
++	int enable_cnt;
++};
++
++#define CLK_PM_SUSPEND_RATE     BIT(0)
++#define CLK_PM_SUSPEND_PARENT   BIT(1)
++#define CLK_PM_SUSPEND_ENABLE   BIT(2)
++
++#ifdef CONFIG_PM
++int clk_pm_init(struct clk *clk, struct clk_pm_data *pm_data,
++	unsigned int pm_flags);
++int clk_pm_data_save(struct clk_pm_data *pm_data);
++int clk_pm_data_restore(struct clk_pm_data *pm_data);
++#else /* CONFIG_PM */
++static inline int clk_pm_init(struct clk *clk, struct clk_pm_data *pm_data,
++	unsigned int pm_flags)
++{
++	return 0;
++}
++
++static inline int clk_pm_data_save(struct clk_pm_data *pm_data)
++{
++	return 0;
++}
++
++static inline int clk_pm_data_restore(struct clk_pm_data *pm_data)
++{
++	return 0;
++}
++#endif /* CONFIG_PM */
++
++/**
++ * struct cc_desc - description of clock controller
++ *
++ * @init_data      init data of clk_reg
++ * @data           onecell data of clock provider
++ * @pm_data        data of clk_pm
++ */
++struct cc_desc {
++	struct clk_reg_init_data init_data;
++	struct clk_onecell_data data;
++#ifdef CONFIG_PM
++	struct clk_pm_data *pm_data;
++#endif
++};
++
++static inline struct cc_desc *devm_cc_alloc(struct device *dev, int max_clk)
++{
++	struct cc_desc *ccd;
++
++	ccd = devm_kzalloc(dev, sizeof(*ccd), GFP_KERNEL);
++	if (!ccd)
++		return NULL;
++
++	ccd->data.clk_num = max_clk;
++	ccd->data.clks = devm_kcalloc(dev, max_clk,
++		sizeof(*ccd->data.clks), GFP_KERNEL);
++	if (!ccd->data.clks)
++		return NULL;
++#ifdef CONFIG_PM
++	ccd->pm_data = devm_kcalloc(dev, max_clk,
++		sizeof(*ccd->pm_data), GFP_KERNEL);
++	if (!ccd->pm_data)
++		return NULL;
++#endif
++	return ccd;
++}
++
++int cc_init_hw(struct device *dev, struct cc_desc *ccd, int cc_index,
++	struct clk_hw *hw);
++int cc_init_composite_clk(struct device *dev, struct cc_desc *ccd,
++	int cc_index, struct clk_composite_init_data *init);
++
++/*
++ * platform specific functions
++ */
++
++/**
++ * cc_init_clocks - platform specific init function, should init data and
++ *                  pm_data in cc_desc for platform driver.
++ *
++ * @dev - deivce of cc with cc_desc in drvier data
++ */
++int cc_init_clocks(struct device *dev);
++
++/**
++ * cc_clock_num - returns clock number in the platform cc
++ */
++int cc_clock_num(void);
++
++#endif /* __CLK_REALTEK_COMMON_H */
++
+diff --git a/drivers/clk/realtek/reset.c b/drivers/clk/realtek/reset.c
+new file mode 100644
+index 000000000..64ce28893
+--- /dev/null
++++ b/drivers/clk/realtek/reset.c
+@@ -0,0 +1,436 @@
++/*
++ * reset-rtk.c - Realtek reset controller & reset control
++ *
++ * Copyright (C) 2016-2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2016-2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/list.h>
++#include <linux/mutex.h>
++#include <linux/of.h>
++#include <linux/of_address.h>
++#include <linux/platform_device.h>
++#include <linux/pm.h>
++#include <linux/regmap.h>
++#include <linux/reset.h>
++#include <linux/reset-controller.h>
++//#include <linux/reset-helper.h>
++#include <linux/slab.h>
++#include <linux/suspend.h>
++#include <soc/realtek/rtk_mmio.h>
++#include <soc/realtek/rdbg.h>
++#include <dt-bindings/reset/rtk,reset.h>
++
++#include "common.h"
++
++static DEFINE_SPINLOCK(rtk_reset_async_lock);
++static LIST_HEAD(rtk_reset_async_list);
++
++#define RESET_ASYNC         BIT(0)
++#define RESET_NO_PM         BIT(1)
++#define RESET_HAS_WRITE_EN  BIT(2)
++
++struct reset_priv {
++	struct device *dev;
++	struct reset_controller_dev rcdev;
++	unsigned int flags;
++
++	/* register */
++	void *reg;
++
++	/* mmio regmap of reg */
++	struct regmap *regmap;
++	int offset;
++
++	/* async reset control */
++	unsigned int async_data;
++	unsigned int async_group;
++	struct list_head async_list;
++
++	/* pm */
++	unsigned int pm_data;
++	unsigned int pm_ignore_bits;
++
++	/* boot clear bits */
++	unsigned int boot_clear_bits;
++
++	/* reg tracker */
++	struct rdbg_info *ref;
++};
++
++#define to_reset_priv(_p) container_of((_p), struct reset_priv, rcdev)
++
++static inline int contain_write_en(struct reset_priv *priv)
++{
++	return !!(priv->flags & RESET_HAS_WRITE_EN);
++}
++
++static inline u32 bits_to_set(struct reset_priv *priv, u32 bits_to_set)
++{
++	return bits_to_set * (contain_write_en(priv) ? 3 : 1);
++}
++
++static inline u32 bits_to_clear(struct reset_priv *priv, u32 bits_to_clear)
++{
++	return contain_write_en(priv) ? (bits_to_clear << 1) : 0;
++}
++
++static inline u32 bits_to_mask(struct reset_priv *priv, u32 bits)
++{
++	return bits_to_set(priv, bits);
++}
++
++static inline void rtk_reset_write(struct reset_priv *priv, unsigned int val)
++{
++	WARN_ON_ONCE(1);
++}
++
++static inline void rtk_reset_read(struct reset_priv *priv, unsigned int *val)
++{
++	if (priv->regmap)
++		regmap_read(priv->regmap, priv->offset, val);
++	else if (priv->reg)
++		*val = readl(priv->reg);
++	else
++		WARN_ON_ONCE(1);
++}
++
++static inline void rtk_reset_update_bits(struct reset_priv *priv,
++	unsigned int mask, unsigned int val)
++{
++	dev_dbg(priv->dev, "%s: flags:%c mask=%08x, val=%08x\n",
++		__func__, contain_write_en(priv) ? 'w' : '-' , mask, val);
++	if (priv->regmap) {
++		regmap_update_bits(priv->regmap, priv->offset, mask, val);
++	} else if (priv->reg) {
++		unsigned int rval;
++
++		rval = readl(priv->reg);
++		rval = (rval & ~mask) | (val & mask);
++		writel(rval, priv->reg);
++	} else
++		WARN_ON_ONCE(1);
++}
++
++static int rtk_reset_assert(struct reset_controller_dev *rcdev,
++		unsigned long id)
++{
++	struct reset_priv *priv = to_reset_priv(rcdev);
++	u32 val, mask;
++
++	if (priv->flags & RESET_ASYNC) {
++		if (id == RTK_RSTN_DO_SYNC)
++			return -EINVAL;
++	}
++
++	mask = bits_to_mask(priv, BIT(id));
++	val = bits_to_clear(priv, BIT(id));
++	rtk_reset_update_bits(priv, mask, val);
++
++	rdbg_update_ref(priv->ref, BIT(id), __func__);
++
++	return 0;
++}
++
++static void rtk_reset_deassert_sync(unsigned int group)
++{
++	struct reset_priv *p;
++	u32 val, mask;
++
++	list_for_each_entry(p, &rtk_reset_async_list, async_list) {
++		if (p->async_group != group)
++			continue;
++
++		if (!p->async_data)
++			continue;
++
++		mask = bits_to_mask(p, p->async_data);
++		val = bits_to_set(p, p->async_data);
++		rtk_reset_update_bits(p, mask, val);
++
++		rdbg_update_ref(p->ref, p->async_data, __func__);
++		p->async_data = 0;
++	}
++}
++
++static int rtk_reset_deassert(struct reset_controller_dev *rcdev,
++		unsigned long id)
++{
++	struct reset_priv *priv = to_reset_priv(rcdev);
++	u32 val, mask;
++	unsigned long flags;
++
++	if (priv->flags & RESET_ASYNC) {
++		spin_lock_irqsave(&rtk_reset_async_lock, flags);
++		if (id == RTK_RSTN_DO_SYNC)
++			rtk_reset_deassert_sync(priv->async_group);
++		else
++			priv->async_data |= BIT(id);
++		spin_unlock_irqrestore(&rtk_reset_async_lock, flags);
++
++		return 0;
++	}
++
++	mask = bits_to_mask(priv, BIT(id));
++	val = bits_to_set(priv, BIT(id));
++	rtk_reset_update_bits(priv, mask, val);
++
++	rdbg_update_ref(priv->ref, BIT(id), __func__);
++
++	return 0;
++}
++
++static int rtk_reset_reset(struct reset_controller_dev *rcdev,
++		unsigned long id)
++{
++	int ret;
++
++	ret = rtk_reset_assert(rcdev, id);
++	if (ret)
++		return ret;
++
++	return rtk_reset_deassert(rcdev, id);
++}
++
++static int rtk_reset_status(struct reset_controller_dev *rcdev,
++		unsigned long id)
++{
++	struct reset_priv *priv = to_reset_priv(rcdev);
++	unsigned int val = 0;
++
++	rtk_reset_read(priv, &val);
++	return !(val & BIT(id));
++}
++
++static struct reset_control_ops rtk_reset_ops = {
++	.assert   = rtk_reset_assert,
++	.deassert = rtk_reset_deassert,
++	.reset    = rtk_reset_reset,
++	.status   = rtk_reset_status,
++};
++
++static int rtk_reset_of_xlate(struct reset_controller_dev *rcdev,
++		const struct of_phandle_args *reset_spec)
++{
++	struct reset_priv __maybe_unused *priv = to_reset_priv(rcdev);
++	int id;
++
++	if (reset_spec->args_count != 1)
++		return -EINVAL;
++
++	id = (int)reset_spec->args[0];
++	return id;
++}
++
++static int rtk_reset_parse_dt(struct device_node *np, struct reset_priv *priv)
++{
++	u32 val;
++
++	if (of_find_property(np, "has-write-en", NULL))
++		priv->flags |= RESET_HAS_WRITE_EN;
++
++	if (!of_property_read_u32(np, "async-group", &val)) {
++		priv->flags |= RESET_ASYNC | RESET_NO_PM;
++		priv->async_group = val;
++		list_add(&priv->async_list, &rtk_reset_async_list);
++	}
++
++	if (of_find_property(np, "no-pm", NULL))
++		priv->flags |= RESET_NO_PM;
++
++	of_property_read_u32(np, "pm-ignore-bits", &priv->pm_ignore_bits);
++
++	priv->boot_clear_bits = 0;
++	of_property_read_u32(np, "boot-clear-bits", &priv->boot_clear_bits);
++
++	return 0;
++}
++
++static int rtk_reset_suspend(struct device *dev)
++{
++	struct reset_priv *priv = dev_get_drvdata(dev);
++
++	if (priv->flags & RESET_NO_PM)
++		return 0;
++
++//#ifdef CONFIG_SUSPEND
++//	if (RTK_PM_STATE == PM_SUSPEND_STANDBY)
++//		return 0;
++//#endif
++	dev_info(dev, "Enter %s\n", __func__);
++
++	rtk_reset_read(priv, &priv->pm_data);
++	dev_dbg(dev, "%s: save val=%08x\n", __func__, priv->pm_data);
++
++	dev_info(dev, "Exit %s\n", __func__);
++	return 0;
++}
++
++static int rtk_reset_resume(struct device *dev)
++{
++	struct reset_priv *priv = dev_get_drvdata(dev);
++	unsigned int mask;
++	unsigned int val;
++
++	if (priv->flags & RESET_NO_PM)
++		return 0;
++
++//#ifdef CONFIG_SUSPEND
++//	if (RTK_PM_STATE == PM_SUSPEND_STANDBY)
++//		return 0;
++//#endif
++	dev_info(dev, "Enter %s\n", __func__);
++
++	val  = priv->pm_data;
++	mask = ~bits_to_mask(priv, priv->pm_ignore_bits);
++	dev_info(dev, "%s: restore mask=%08x, val=%08x\n", __func__, mask, val);
++	rtk_reset_update_bits(priv, mask, val);
++
++	dev_info(dev, "Exit %s\n", __func__);
++	return 0;
++}
++
++static const struct dev_pm_ops rtk_reset_pm_ops = {
++	.suspend_noirq = rtk_reset_suspend,
++	.resume_noirq = rtk_reset_resume,
++};
++
++static int rtk_reset_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct device_node *np = dev->of_node;
++	struct reset_priv *priv;
++	struct regmap *regmap;
++	void *reg;
++	int offset = 0;
++	int ret;
++
++	dev_info(dev, "%s\n", __func__);
++
++	priv = devm_kzalloc(&pdev->dev, sizeof(struct reset_priv), GFP_KERNEL);
++	if (!priv)
++		return -ENOMEM;
++
++	reg = of_iomap(np, 0);
++	regmap = of_get_rtk_mmio_regmap_with_offset(np, 0, &offset);
++	if (IS_ERR(regmap))
++		regmap = NULL;
++	if (!reg && IS_ERR_OR_NULL(regmap))
++		return -EINVAL;
++
++	priv->dev = dev;
++	priv->reg = reg;
++	if (regmap) {
++		priv->regmap = regmap;
++		priv->offset = offset;
++		dev_info(dev, "use mmio regmap\n");
++	}
++
++	/* low level debug */
++	if (is_clk_debug_enabled()) {
++		priv->ref = of_rdbg_get_info(np, 0, 0);
++		if (priv->ref)
++			dev_err(dev, "rdbg add %s\n", np->name);
++	}
++
++	priv->rcdev.owner = THIS_MODULE;
++	priv->rcdev.ops = &rtk_reset_ops;
++	priv->rcdev.of_node = np;
++	priv->rcdev.of_reset_n_cells = 1;
++	priv->rcdev.of_xlate = rtk_reset_of_xlate;
++	rtk_reset_parse_dt(np, priv);
++
++	if (priv->boot_clear_bits) {
++		u32 mask = bits_to_mask(priv, priv->boot_clear_bits);
++		u32 val = bits_to_clear(priv, priv->boot_clear_bits);
++
++		dev_info(dev, "boot_clear_bits: mask=%08x, val=%08x\n",
++			mask, val);
++		rtk_reset_update_bits(priv, mask, val);
++	}
++	ret = reset_controller_register(&priv->rcdev);
++	if (ret)
++		return ret;
++
++	platform_set_drvdata(pdev, priv);
++
++	return ret;
++}
++
++static const struct of_device_id rtk_reset_match[] = {
++	{.compatible = "realtek,reset-controller"},
++	{}
++};
++
++static struct platform_driver rtk_reset_driver = {
++	.probe = rtk_reset_probe,
++	.driver = {
++		.name   = "rtk-reset",
++		.of_match_table = rtk_reset_match,
++		.pm = &rtk_reset_pm_ops,
++	},
++};
++
++static int __init rtk_reset_init(void)
++{
++	return platform_driver_register(&rtk_reset_driver);
++}
++core_initcall(rtk_reset_init);
++
++/*
++ * deprecated api
++ */
++static struct device_node *__rcp_np;
++
++struct reset_control *rstc_get(const char *name)
++{
++	struct reset_control *rstc = ERR_PTR(-EINVAL);
++	struct device_node *child;
++
++	pr_notice("Deprecated API rstc_get is used by %s, PLEASE use of_reset_control_get\n",
++		name);
++
++	if (!__rcp_np)
++		return ERR_PTR(-ENOENT);
++
++	for_each_child_of_node(__rcp_np, child) {
++		rstc = of_reset_control_get(child, name);
++		if (!IS_ERR(rstc))
++			return rstc;
++	}
++
++	pr_err("Failed to get rstc for %s\n", name);
++	return rstc;
++}
++EXPORT_SYMBOL(rstc_get);
++
++static const struct of_device_id rtk_rcp_match[] = {
++	{.compatible = "realtek,reset-control-provider"},
++	{}
++};
++
++static int rtk_rcp_probe(struct platform_device *pdev)
++{
++	dev_info(&pdev->dev, "deprecated API OK\n");
++	__rcp_np = pdev->dev.of_node;
++	return 0;
++}
++
++static struct platform_driver rtk_rcp_driver = {
++	.probe = rtk_rcp_probe,
++	.driver = {
++		.name   = "rtk-rcp",
++		.of_match_table = rtk_rcp_match,
++	},
++};
++
++static int __init rtk_rcp_init(void)
++{
++	return platform_driver_register(&rtk_rcp_driver);
++}
++core_initcall(rtk_rcp_init);
++
+diff --git a/include/soc/realtek/rdbg.h b/include/soc/realtek/rdbg.h
+new file mode 100644
+index 000000000..376f52639
+--- /dev/null
++++ b/include/soc/realtek/rdbg.h
+@@ -0,0 +1,68 @@
++#ifndef __SOC_REALTEK_DEBUG_H
++#define __SOC_REALTEK_DEBUG_H
++
++struct rdbg_info;
++
++#ifdef CONFIG_RTK_REGISTER_TRACKER
++
++struct rdbg_info *rdbg_create_info(unsigned long paddr);
++struct rdbg_info *rdbg_phy2info(unsigned long paddr);
++void rdbg_update_ref(struct rdbg_info *info, unsigned int update_val,
++	const char *caller);
++
++#else /* !CONFIG_RTK_REGISTER_TRACKER */
++
++static inline struct rdbg_info *rdbg_create_info(unsigned long paddr)
++{
++	return NULL;
++}
++
++static inline struct rdbg_info *rdbg_phy2info(unsigned long paddr)
++{
++	return NULL;
++}
++
++static inline void rdbg_update_ref(struct rdbg_info *info, unsigned int update_val,
++	        const char *caller)
++{
++
++}
++#endif /* CONFIG_RTK_REGISTER_TRACKER */
++
++#include <linux/of_address.h>
++#include <linux/ioport.h>
++
++static inline struct rdbg_info *of_rdbg_get_info(struct device_node *np,
++	int index, unsigned int offset)
++{
++	struct resource res;
++	struct rdbg_info *info;
++
++	of_address_to_resource(np, index, &res);
++
++	info = rdbg_phy2info((unsigned long)res.start + offset);
++	if (!info)
++		info = rdbg_create_info((unsigned long)res.start + offset);
++
++	return info;
++}
++
++#ifdef CONFIG_RTK_PM_RUNTIME_DEBUG
++
++int rpm_debug_sysfs_add(struct device *dev);
++void rpm_debug_sysfs_remove(struct device *dev);
++
++#else /* !CONFIG_RTK_PM_RUNTIME_DEBUG */
++
++static inline int rpm_debug_sysfs_add(struct device *dev)
++{
++	return 0;
++}
++
++static inline void rpm_debug_sysfs_remove(struct device *dev)
++{}
++
++#endif /* CONFIG_RTK_PM_RUNTIME_DEBUG */
++
++
++#endif /* __SOC_REALTEK_DEBUG_H */
+diff --git a/include/soc/realtek/rtk_mmio.h b/include/soc/realtek/rtk_mmio.h
+new file mode 100644
+index 000000000..ada9df497
+--- /dev/null
++++ b/include/soc/realtek/rtk_mmio.h
+@@ -0,0 +1,52 @@
++/*
++ * rtk_mmio.h -  Realtek Regmap-MMIO API.
++ *
++ * Copyright (C) 2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ */
++#ifndef __SOC_REALTEK_MMIO_H
++#define __SOC_REALTEK_MMIO_H
++
++#include <linux/regmap.h>
++
++struct device_node;
++
++#ifdef CONFIG_RTK_MMIO
++struct regmap *rtk_mmio_node_to_regmap(struct device_node *np);
++#else
++static inline struct regmap *rtk_mmio_node_to_regmap(struct device_node *np)
++{
++	return ERR_PTR(-ENOENT);
++}
++#endif
++
++static inline struct regmap *of_get_rtk_mmio_regmap_with_offset(
++	const struct device_node *np, int index, int *offset)
++{
++	struct of_phandle_args args;
++	int ret;
++
++	ret = of_parse_phandle_with_fixed_args(np, "realtek,mmio", 1,
++		index, &args);
++	if (ret)
++		return ERR_PTR(ret);
++
++	if (offset)
++		*offset = args.args[0];
++
++	return rtk_mmio_node_to_regmap(args.np);
++}
++
++static inline struct regmap *of_get_rtk_mmio_regmap(
++	const struct device_node *np, int index)
++{
++	return of_get_rtk_mmio_regmap_with_offset(np, index, NULL);
++}
++
++#endif /* __SOC_REALTEK_RTD129X_MMIO_H */
++
+-- 
+2.25.1
+
