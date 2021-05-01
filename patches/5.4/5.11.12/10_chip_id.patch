@@ -1,0 +1,133 @@
+From 539b2a8de258c580cc48d02b9aed1614c97542a3 Mon Sep 17 00:00:00 2001
+From: Celliwig <celliwig@nym.hush.com>
+Date: Sat, 1 May 2021 21:02:13 +0100
+Subject: Added chip revision identification routines.
+
+---
+ drivers/soc/realtek/rtd129x/Makefile   |  1 +
+ drivers/soc/realtek/rtd129x/rtk_chip.c | 62 ++++++++++++++++++++++++++
+ include/soc/realtek/rtk_chip.h         | 37 +++++++++++++++
+ 3 files changed, 100 insertions(+)
+ create mode 100644 drivers/soc/realtek/rtd129x/rtk_chip.c
+ create mode 100644 include/soc/realtek/rtk_chip.h
+
+diff --git a/drivers/soc/realtek/rtd129x/Makefile b/drivers/soc/realtek/rtd129x/Makefile
+index e69de29bb..bb1616a89 100644
+--- a/drivers/soc/realtek/rtd129x/Makefile
++++ b/drivers/soc/realtek/rtd129x/Makefile
+@@ -0,0 +1 @@
++obj-$(CONFIG_ARCH_RTD129x)	+= rtk_chip.o
+diff --git a/drivers/soc/realtek/rtd129x/rtk_chip.c b/drivers/soc/realtek/rtd129x/rtk_chip.c
+new file mode 100644
+index 000000000..7551dafdd
+--- /dev/null
++++ b/drivers/soc/realtek/rtd129x/rtk_chip.c
+@@ -0,0 +1,62 @@
++/*
++ * rtk_chip.c
++ *
++ * Copyright (c) 2017 Realtek Semiconductor Corp.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ */
++
++#include <linux/io.h>
++#include <soc/realtek/rtk_chip.h>
++
++#define SB2_BASE_ADDR		0x9801A000
++#define	CHIP_ID				0x00000200
++#define CHIP_REV			0x00000204
++
++#define EFUSE_ADDR			0x980171d8
++#define CHIP_INFO1			0x98007028
++
++#define RTK1296_CPU_MASK	0x00000800
++
++int get_rtd_chip_id(void) {
++	int cpu_id = CHIP_ID_RTD1295;
++	void __iomem *chip_info1_addr = ioremap(CHIP_INFO1, 0x4);
++
++	if (readl(chip_info1_addr) & RTK1296_CPU_MASK) {
++		cpu_id = CHIP_ID_RTD1296;
++	}
++	iounmap(chip_info1_addr);
++	return cpu_id;
++}
++
++#define RTD129x_CHIP_A00 (0x00000000)
++#define RTD129x_CHIP_A01 (0x00010000)
++#define RTD129x_CHIP_B00 (0x00020000)
++#define RTD129x_CHIP_B01 (0x00030000)
++
++int get_rtd_chip_revision(void) {
++	void __iomem *chip_revision_addr = ioremap(SB2_BASE_ADDR + CHIP_REV, 0x4);
++
++	int val = readl(chip_revision_addr);
++
++	iounmap(chip_revision_addr);
++
++	switch (val) {
++	case (RTD129x_CHIP_A00):
++		return RTD_CHIP_A00;
++	case (RTD129x_CHIP_A01):
++		return RTD_CHIP_A01;
++	case (RTD129x_CHIP_B00):
++		return RTD_CHIP_B00;
++	case (RTD129x_CHIP_B01):
++		return RTD_CHIP_B01;
++	default:
++		printk("%s: Not define chip revision 0x%x\n", __func__, val);
++	}
++	return 0;
++}
++
++
+diff --git a/include/soc/realtek/rtk_chip.h b/include/soc/realtek/rtk_chip.h
+new file mode 100644
+index 000000000..59b854680
+--- /dev/null
++++ b/include/soc/realtek/rtk_chip.h
+@@ -0,0 +1,37 @@
++/*
++ * rtk_chip.h
++ *
++ * Copyright (c) 2017 Realtek Semiconductor Corp.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ */
++
++#ifndef _RTK_CHIP_H_INCLUDED_
++#define _RTK_CHIP_H_INCLUDED_
++
++enum rtd_chip_id {
++	CHIP_ID_RTD1195 = 0x1195,
++	CHIP_ID_RTD129X = 0x1290,
++	CHIP_ID_RTD1294 = 0x1294,
++	CHIP_ID_RTD1295 = 0x1295,
++	CHIP_ID_RTD1296 = 0x1296,
++	CHIP_ID_RTD1392 = 0x1392,
++	CHIP_ID_RTD1395 = 0x1395,
++	CHIP_ID_RTD1619 = 0x1619,
++};
++
++int get_rtd_chip_id(void);
++
++enum rtd_chip_revision {
++	RTD_CHIP_A00 = 0xA00,
++	RTD_CHIP_A01 = 0xA01,
++	RTD_CHIP_B00 = 0xB00,
++	RTD_CHIP_B01 = 0xB01,
++};
++
++int get_rtd_chip_revision(void);
++
++#endif //_RTK_CHIP_H_INCLUDED_
+-- 
+2.25.1
+
