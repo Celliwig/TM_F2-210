@@ -1,0 +1,147 @@
+From 8ef074f54297fced6824aea73128c7e61977d0de Mon Sep 17 00:00:00 2001
+From: Celliwig <celliwig@nym.hush.com>
+Date: Sun, 2 May 2021 00:52:32 +0100
+Subject: Added I2C regmap routines.
+
+---
+ drivers/soc/realtek/common/Kconfig          |  5 ++
+ drivers/soc/realtek/common/Makefile         |  1 +
+ drivers/soc/realtek/common/rtk_regmap_i2c.c | 75 +++++++++++++++++++++
+ include/soc/realtek/rtk_regmap.h            | 27 ++++++++
+ 4 files changed, 108 insertions(+)
+ create mode 100644 drivers/soc/realtek/common/rtk_regmap_i2c.c
+ create mode 100644 include/soc/realtek/rtk_regmap.h
+
+diff --git a/drivers/soc/realtek/common/Kconfig b/drivers/soc/realtek/common/Kconfig
+index e69de29bb..e9fd658cf 100644
+--- a/drivers/soc/realtek/common/Kconfig
++++ b/drivers/soc/realtek/common/Kconfig
+@@ -0,0 +1,5 @@
++config RTK_REGMAP_I2C
++	bool
++	depends on (ARCH_REALTEK)
++	default ARCH_REALTEK
++	select REGMAP
+diff --git a/drivers/soc/realtek/common/Makefile b/drivers/soc/realtek/common/Makefile
+index e69de29bb..0c4b4b280 100644
+--- a/drivers/soc/realtek/common/Makefile
++++ b/drivers/soc/realtek/common/Makefile
+@@ -0,0 +1 @@
++obj-${CONFIG_RTK_REGMAP_I2C}	+= rtk_regmap_i2c.o
+diff --git a/drivers/soc/realtek/common/rtk_regmap_i2c.c b/drivers/soc/realtek/common/rtk_regmap_i2c.c
+new file mode 100644
+index 000000000..a875c6798
+--- /dev/null
++++ b/drivers/soc/realtek/common/rtk_regmap_i2c.c
+@@ -0,0 +1,75 @@
++/*
++ * rtk_regmap_i2c.c - Realtek Regmap I2C bus
++ *
++ * Copyright (C) 2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++#include <linux/regmap.h>
++#include <linux/i2c.h>
++
++#define to_bytep(_p)  ((unsigned char *)(_p))
++
++static int rtk_regmap_i2c_write(void *context, const void *data, size_t count)
++{
++	struct i2c_client *i2c = context;
++	int ret = 0;
++
++	pr_debug("%s: reg = %02x val = %02x\n", __func__,
++		to_bytep(data)[0], to_bytep(data)[1]);
++
++	ret = i2c_master_send(i2c, data, count);
++
++	if (ret == count)
++		return 0;
++	else if (ret < 0)
++		return ret;
++	else
++		return -EIO;
++}
++
++static int rtk_regmap_i2c_read(void *context, const void *reg, size_t reg_size,
++	void *val, size_t val_size)
++{
++	struct i2c_client *i2c = context;
++	unsigned char _reg = *(unsigned char *)reg;
++	struct i2c_msg xfer[2];
++	int ret = 0;
++
++	xfer[0].addr = i2c->addr;
++	xfer[0].flags = 0;
++	xfer[0].len = reg_size;
++	xfer[0].buf = &_reg;
++
++	xfer[1].addr = i2c->addr;
++	xfer[1].flags = I2C_M_RD;
++	xfer[1].len = val_size;
++	xfer[1].buf = val;
++
++	ret = i2c_transfer(i2c->adapter, xfer, 2);
++
++	pr_debug("%s: reg = %02x val = %02x ret = %d\n", __func__,
++		_reg, to_bytep(val)[0], ret);
++
++	if (ret == 2)
++		return 0;
++	else if (ret < 0)
++		return ret;
++	else
++		return -EIO;
++}
++
++static struct regmap_bus rtk_regmap_regmap_bus = {
++	.write = rtk_regmap_i2c_write,
++	.read  = rtk_regmap_i2c_read,
++};
++
++struct regmap *devm_rtk_regmap_i2c_init(struct device *dev,
++	struct i2c_client *client, const struct regmap_config *config)
++{
++	return devm_regmap_init(dev, &rtk_regmap_regmap_bus, client, config);
++}
++EXPORT_SYMBOL_GPL(devm_rtk_regmap_i2c_init);
+diff --git a/include/soc/realtek/rtk_regmap.h b/include/soc/realtek/rtk_regmap.h
+new file mode 100644
+index 000000000..4a1428358
+--- /dev/null
++++ b/include/soc/realtek/rtk_regmap.h
+@@ -0,0 +1,27 @@
++/*
++ * rtk_regmap.h - Realtek Regmap API
++ *
++ * Copyright (C) 2017 Realtek Semiconductor Corporation
++ * Copyright (C) 2017 Cheng-Yu Lee <cylee12@realtek.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++#ifndef __SOC_REALTEK_REGMAP_H
++#define __SOC_REALTEK_REGMAP_H
++
++struct i2c_client;
++
++#ifdef CONFIG_RTK_REGMAP_I2C
++struct regmap *devm_rtk_regmap_i2c_init(struct device *dev,
++	struct i2c_client *client, const struct regmap_config *config);
++#else /* !CONFIG_RTK_REGMAP_I2C */
++static struct regmap *devm_rtk_regmap_i2c_init(struct device *dev,
++	struct i2c_client *client, const struct regmap_config *config)
++{
++	return ERR_PTR(-ENOENT);
++}
++#endif /* CONFIG_RTK_REGMAP_I2C */
++
++#endif
+-- 
+2.25.1
+
