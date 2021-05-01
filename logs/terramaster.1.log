@@ -1,0 +1,831 @@
+[    0.000000] bootconsole [uart0] enabled
+[    0.000000] cma: fdt region 0
+[    0.000000] cma: Reserved 16 MiB at 0x0000000011000000
+[    0.000000] psci: probing for conduit method from DT.
+[    0.000000] psci: PSCIv0.1 detected in firmware.
+[    0.000000] psci: Conflicting PSCI version detected.
+[    0.000000] PERCPU: Embedded 20 pages/cpu @ffffffc03ff5e000 s45056 r8192 d28672 u81920
+[    0.000000] Detected VIPT I-cache on CPU0
+[    0.000000] CPU features: enabling workaround for ARM erratum 845719
+[    0.000000] Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 258048
+[    0.000000] Kernel command line: rdinit=/sbin/init  mtdparts=RtkSFC:128k(factory),512k(uboot),320k(logo),1408k(afw),64k(dtb),7680k(kernel),5632k(initrd)  earlycon=uart8250,mmio32,)
+[    0.000000] PID hash table entries: 4096 (order: 3, 32768 bytes)
+[    0.000000] Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 7, 524288 bytes)
+[    0.000000] Memory: 574204K/1048576K available (11262K kernel code, 1231K rwdata, 3672K rodata, 576K init, 563K bss, 457988K reserved, 16384K cma-reserved)
+[    0.000000] Virtual kernel memory layout:
+[    0.000000]     modules : 0xffffff8000000000 - 0xffffff8008000000   (   128 MB)
+[    0.000000]     vmalloc : 0xffffff8008000000 - 0xffffffbebfff0000   (   250 GB)
+[    0.000000]       .init : 0xffffff8009120000 - 0xffffff80091b0000   (   576 KB)
+[    0.000000]       .text : 0xffffff8008280000 - 0xffffff8008d80000   ( 11264 KB)
+[    0.000000]     .rodata : 0xffffff8008d80000 - 0xffffff8009120000   (  3712 KB)
+[    0.000000]       .data : 0xffffff80091b0000 - 0xffffff80092e3c48   (  1232 KB)
+[    0.000000]     vmemmap : 0xffffffbefe7fd000 - 0xffffffbefec00000   (  4108 GB maximum)
+[    0.000000]               0xffffffbefee00000 - 0xffffffbeffe00000   (    16 MB actual)
+[    0.000000]     fixed   : 0xffffffbf00000000 - 0xffffffc000000000   (     4 KB)
+[    0.000000]     PCI I/O : 0xffffffbf00000000 - 0xffffffbf01000000   (    16 MB)
+[    0.000000]     memory  : 0xffffffc000000000 - 0xffffffc040000000   (  1024 MB)
+[    0.000000] Hierarchical RCU implementation.
+[    0.000000]  CONFIG_RCU_FANOUT set to non-default value of 32
+[    0.000000] NR_IRQS:64 nr_irqs:64 0
+[    0.000000] Architected cp15 timer(s) running at 27.00MHz (phys).
+[    0.000000] clocksource: arch_sys_counter: mask: 0xffffffffffffff max_cycles: 0x63a1e71a3, max_idle_ns: 440795203123 ns
+[    0.000005] sched_clock: 56 bits at 27MHz, resolution 37ns, wraps every 4398046511093ns
+[    0.009076] [RTK-TIMER0] set mode: CLOCK_EVT_MODE_SHUTDOWN
+[    0.015251] [RTK-TIMER0] clocksource 0 register HZ
+[    0.020640] clocksource: rtk_timer0_counter: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 579169832313 ns
+[    0.032324] [RTK-TIMER0] set mode: CLOCK_EVT_MODE_SHUTDOWN
+[    0.038495] [RTK-TIMER1] set mode: CLOCK_EVT_MODE_SHUTDOWN
+[    0.044665] [RTK-TIMER1] clocksource 1 register HZ
+[    0.050053] clocksource: rtk_timer1_counter: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 579169832313 ns
+[    0.062040] [RTK_MEM_REMAP] initialized
+[    0.066692] Console: colour dummy device 80x25
+[    0.071701] Calibrating delay loop (skipped), value calculated using timer frequency.. 54.00 BogoMIPS (lpj=270000)
+[    0.083365] pid_max: default: 32768 minimum: 301
+[    0.088721] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes)
+[    0.096274] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes)
+[    0.104911] Initializing cgroup subsys io
+[    0.109440] Initializing cgroup subsys memory
+[    0.114365] Initializing cgroup subsys devices
+[    0.119367] Initializing cgroup subsys freezer
+[    0.124380] Initializing cgroup subsys net_cls
+[    0.129382] Initializing cgroup subsys perf_event
+[    0.134690] Initializing cgroup subsys net_prio
+[    0.139794] Initializing cgroup subsys hugetlb
+[    0.144803] Initializing cgroup subsys pids
+[    0.149781] ASID allocator initialised with 65536 entries
+[    0.164051] pctrl-rtk: addr: 0x0802c00c [0x13fe8161 -> 0x137e8161], bit-diff = 0x00800000, mask = 0xec803012
+[    0.175153] pctrl-rtk: addr: 0x0802e010 [0x5801e416 -> 0x58010414], bit-diff = 0x0000e002, mask = 0x0100e0a2
+[    0.186241] pctrl-rtk: addr: 0x0803008c [0x00001f01 -> 0x00001901], bit-diff = 0x00000600, mask = 0x000006f8
+[    0.197329] pctrl-rtk: addr: 0x08032000 [0xbfd81001 -> 0x9fd81001], bit-diff = 0x20000000, mask = 0x60000354
+[    0.208420] pctrl-rtk: addr: 0x08034004 [0x1f840e01 -> 0x0f840e01], bit-diff = 0x10000000, mask = 0x507be1fc
+[    0.219509] pctrl-rtk: addr: 0x08036050 [0x0000801f -> 0x0000801f], bit-diff = 0x00000000, mask = 0x00007020
+[    0.230597] pctrl-rtk: addr: 0x08038088 [0x00001f80 -> 0x00001f80], bit-diff = 0x00000000, mask = 0x00002062
+[    0.241709] pctrl-rtk: pctrl_ve1::POWER_OFF, ret = 0
+[    0.247346] pctrl-rtk: pctrl_ve2::POWER_OFF, ret = 0
+[    0.252997] pctrl-rtk: pctrl_ve3::POWER_OFF, ret = 0
+[    0.258673] pctrl-rtk: pctrl_gpu::POWER_OFF, ret = 0
+[    0.264335] pctrl-rtk: pctrl_gpu_core_1::POWER_OFF, ret = 0
+[    0.270691] pctrl-rtk: pctrl_gpu_core_2::POWER_OFF, ret = 0
+[    0.277066] pctrl-rtk: pctrl_gpu_core_3::POWER_OFF, ret = 0
+[    0.283597] pctrl-rtk: pctrl_mhl3_en::POWER_OFF, ret = 0
+[    0.290221] pctrl-rtk: pctrl_l4_icg_nand::ENABLE_HW_PM, ret = -1
+[    0.297017] pctrl-rtk: pctrl_usb_p0_mac::POWER_ON, ret = 0
+[    0.303249] pctrl-rtk: pctrl_usb_p0_phy::POWER_ON, ret = 0
+[    0.309566] pctrl-rtk: pctrl_usb_p3_mac_A: rev not match
+[    0.315581] pctrl-rtk: pctrl_usb_p3_mac::POWER_ON, ret = 0
+[    0.321787] pctrl-rtk: pctrl_usb_p3_phy::POWER_ON, ret = 0
+[    0.328171] pctrl-rtk: pctrl_cr::POWER_OFF, ret = 0
+[    0.333758] reset-rtk: DEASSERT    0x0801c004 [0x0f840e01 -> 0x0f841e01] D 0x00001000, M 0x00001000
+[    0.343955] reset-rtk: ASSERT      0x0801c004 [0x0f841e01 -> 0x0f840e01] D 0x00001000, M 0x00001000
+[    0.354149] pctrl-rtk: pctrl_sdio::POWER_OFF, ret = 0
+[    0.360155] pctrl-rtk: pctrl_pll_ve1::POWER_OFF, ret = 0
+[    0.366931] Detected VIPT I-cache on CPU1
+[    0.366975] CPU1: Booted secondary processor [410fd034]
+[    0.367285] Detected VIPT I-cache on CPU2
+[    0.367311] CPU2: Booted secondary processor [410fd034]
+[    0.367616] Detected VIPT I-cache on CPU3
+[    0.367642] CPU3: Booted secondary processor [410fd034]
+[    0.367687] Brought up 4 CPUs
+[    0.402181] SMP: Total of 4 processors activated.
+[    0.407476] CPU: All CPU(s) started at EL2
+[    0.412107] alternatives: patching kernel code
+[    0.417601] devtmpfs: initialized
+[    0.431680] clk-rtk: scpu,pll,workaround 34055501
+[    0.436986] clk-rtk: scpu,pll,workaround 04038500
+[    0.443431] clk-rtk: Failed to init pll_gpu, ret = -22
+[    0.449286] clk-rtk: Failed to init pll_acpu, ret = -22
+[    0.457772] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+[    0.469787] xor: measuring software checksum speed
+[    0.568911]    8regs     :  1489.200 MB/sec
+[    0.668960]    8regs_prefetch:  1297.200 MB/sec
+[    0.769012]    32regs    :  1816.000 MB/sec
+[    0.869064]    32regs_prefetch:  1638.000 MB/sec
+[    0.874258] xor: using function: 32regs (1816.000 MB/sec)
+[    0.880356] pinctrl core: initialized pinctrl subsystem
+[    0.886917] NET: Registered protocol family 16
+[    0.892995] vdso: 2 pages (1 code @ ffffff8008d86000, 1 data @ ffffff80091b4000)
+[    0.901344] hw-breakpoint: found 6 breakpoint and 4 watchpoint registers.
+[    0.910009] DMA: preallocated 1024 KiB pool for atomic allocations
+[    0.917275] rst-control : base ffffff8008242600, offset 0x40
+[    0.923670] ****** rtk_lockapi_init 568, chip_revision = 0x00030000
+[    0.930875] [PINCTRL] driver init
+[    0.937297] [PINCTRL] init done
+[    0.945850] [GPIO] No default gpio need to set
+[    1.154821] raid6: int64x1  gen()   270 MB/s
+[    1.324852] raid6: int64x1  xor()   262 MB/s
+[    1.494913] raid6: int64x2  gen()   416 MB/s
+[    1.665028] raid6: int64x2  xor()   352 MB/s
+[    1.835129] raid6: int64x4  gen()   608 MB/s
+[    2.005136] raid6: int64x4  xor()   447 MB/s
+[    2.175325] raid6: int64x8  gen()   477 MB/s
+[    2.345331] raid6: int64x8  xor()   372 MB/s
+[    2.515425] raid6: neonx1   gen()   502 MB/s
+[    2.685499] raid6: neonx1   xor()   490 MB/s
+[    2.855538] raid6: neonx2   gen()   753 MB/s
+[    3.025620] raid6: neonx2   xor()   639 MB/s
+[    3.195720] raid6: neonx4   gen()  1026 MB/s
+[    3.365785] raid6: neonx4   xor()   762 MB/s
+[    3.535859] raid6: neonx8   gen()  1033 MB/s
+[    3.705947] raid6: neonx8   xor()   781 MB/s
+[    3.710750] raid6: using algorithm neonx8 gen() 1033 MB/s
+[    3.716829] raid6: .... xor() 781 MB/s, rmw enabled
+[    3.722316] raid6: using intx1 recovery algorithm
+[    3.727751] ACPI: Interpreter disabled.
+[    3.732300] [RTD129x_PM] Initial RTD129x Power Management Driver.
+[    3.739490] [RTD129x_PM] wakeup-gpio Cnt: en(3) act(3) list(3)
+[    3.746090] [RTD129x_PM] wakeup-gpio[0] Successful registration! (en:1 act:1 gpio:106)
+[    3.755036] [RTD129x_PM] wakeup-gpio[1] States is disable! (en:0 act:0 gpio:115)
+[    3.763402] [RTD129x_PM] wakeup-gpio[2] Successful registration! (en:1 act:0 gpio:134)
+[    3.772327] [RTD129x_PM] gpio-output-change Cnt: en(0) act(0) list(-2)
+[    3.779677] [RTD129x_PM] Set suspend-mode = ram
+[    3.784779] [RTD129x_PM] Wakeup Flags Set Default : 0x2e
+[    3.790764] RTD129x_PM 98000000.power-management: is system-power-controller
+[    3.799064] SCSI subsystem initialized
+[    3.803430] usbcore: registered new interface driver usbfs
+[    3.809657] usbcore: registered new interface driver hub
+[    3.815698] usbcore: registered new device driver usb
+[    3.821468] rtk-usb-power-manager 98000000.rtk_usb_power_manager: ENTER rtk_usb_power_manager_probe
+[    3.831782] rtk-usb-power-manager 98000000.rtk_usb_power_manager: rtk_dwc3_drd status is okay
+[    3.841382] rtk-usb-power-manager 98000000.rtk_usb_power_manager: rtk_dwc3_u2host status is okay
+[    3.851284] rtk-usb-power-manager 98000000.rtk_usb_power_manager: ehci status is okay
+[    3.860100] rtk-usb-power-manager 98000000.rtk_usb_power_manager: ohci status is okay
+[    3.868926] rtk-usb-power-manager 98000000.rtk_usb_power_manager: rtk_dwc3_u3host status is okay
+[    3.878837] rtk-usb-power-manager 98000000.rtk_usb_power_manager: set usb_power_domain/p3 on
+[    3.888393] reset-rtk: ASSERT      0x08028000 [0x9fd81001 -> 0x9fd81001] D 0x00000000, M 0x00000100
+[    3.898586] reset-rtk: ASSERT      0x08028000 [0x9fd81001 -> 0x9fd81001] D 0x00000000, M 0x00000200
+[    3.908785] reset-rtk: ASSERT      0x08028004 [0x0f840e01 -> 0x0f840e01] D 0x00000000, M 0x00000008
+[    3.918977] reset-rtk: ASSERT      0x08028004 [0x0f840e01 -> 0x0f840e01] D 0x00000000, M 0x00000004
+[    3.929174] reset-rtk: ASSERT      0x08028000 [0x9fd81001 -> 0x9fd81001] D 0x00000000, M 0x00000004
+[    3.939365] reset-rtk: ASSERT      0x08028004 [0x0f840e01 -> 0x0f840e01] D 0x00000000, M 0x00000010
+[    3.949558] reset-rtk: ASSERT      0x0801a000 [0x9fd81001 -> 0x9fd81001] D 0x00000000, M 0x00000010
+[    3.959749] reset-rtk: ASSERT      0x0801c004 [0x0f840e01 -> 0x0f840e01] D 0x00000000, M 0x00000020
+[    3.969941] reset-rtk: ASSERT      0x0801a000 [0x9fd81001 -> 0x9fd81001] D 0x00000000, M 0x00000040
+[    3.983145] reset-rtk: DEASSERT    0x0801a000 [0x9fd81305 -> 0x9fd81315] D 0x00000010, M 0x00000010
+[    3.993338] reset-rtk: DEASSERT    0x0801c004 [0x0f840e1d -> 0x0f840e3d] D 0x00000020, M 0x00000020
+[    4.003532] reset-rtk: DEASSERT    0x0801a000 [0x9fd81315 -> 0x9fd81355] D 0x00000040, M 0x00000040
+[    4.016730] rtk-usb-power-manager 98000000.rtk_usb_power_manager: Realtek USB init 5/5 OK (CRT_SOFT_RESET1=9fd81355, CRT_SOFT_RESET2=f840e3d, CRT_CLOCK_ENABLE1=137e8171)
+[    4.033808] rtk-usb-power-manager 98000000.rtk_usb_power_manager: rtk_usb_power_manager_probe OK (take 170 ms)
+[    4.046562] Linux video capture interface: v2.00
+[    4.052063] Advanced Linux Sound Architecture Driver Initialized.
+[    4.059856] clocksource: Switched to clocksource arch_sys_counter
+[    4.110439] FS-Cache: Loaded
+[    4.114163] pnp: PnP ACPI: disabled
+[    4.118244] drivers/soc/realtek/rtd129x/rtk_ion_of.c rtk_ion_probe
+[    4.126209] drivers/soc/realtek/rtd129x/rtk_ion_of.c rtk_ion_probe nr_heaps:5
+[    4.139263] rtk_ion_probe: adding heap Audio of type 8 with 2600000@800000 (type:GEN_POOL)
+[    4.324186] rtk_ion_probe: adding heap Media of type 7 with 11000000@1000000 (type:CMA_POOL)
+[    4.334696] rtk_ion_probe: adding heap Media of type 7 with 12000000@a000000 (type:GEN_POOL)
+[    4.345186] rtk_ion_probe: adding heap Media of type 7 with 2e00000@d200000 (type:GEN_POOL)
+[    4.362495] NET: Registered protocol family 2
+[    4.367877] TCP established hash table entries: 8192 (order: 4, 65536 bytes)
+[    4.375970] TCP bind hash table entries: 8192 (order: 5, 131072 bytes)
+[    4.383511] TCP: Hash tables configured (established 8192 bind 8192)
+[    4.390742] UDP hash table entries: 512 (order: 2, 16384 bytes)
+[    4.397433] UDP-Lite hash table entries: 512 (order: 2, 16384 bytes)
+[    4.404842] NET: Registered protocol family 1
+[    4.410050] RPC: Registered named UNIX socket transport module.
+[    4.416711] RPC: Registered udp transport module.
+[    4.422019] RPC: Registered tcp transport module.
+[    4.427311] RPC: Registered tcp NFSv4.1 backchannel transport module.
+[    4.435203] Trying to unpack rootfs image as initramfs...
+[    6.514774] Freeing initrd memory: 4096K (ffffffc002200000 - ffffffc002600000)
+[    6.523687] hw perfevents: enabled with armv8_pmuv3 PMU driver, 7 counters available
+[    6.534794] futex hash table entries: 1024 (order: 5, 131072 bytes)
+[    6.542513] HugeTLB registered 2 MB page size, pre-allocated 0 pages
+[    6.550122] VFS: Disk quotas dquot_6.6.0
+[    6.554591] VFS: Dquot-cache hash table entries: 512 (order 0, 4096 bytes)
+[    6.562749] squashfs: version 4.0 (2009/01/31) Phillip Lougher
+[    6.570134] FS-Cache: Netfs 'nfs' registered for caching
+[    6.576305] NFS: Registering the id_resolver key type
+[    6.582037] Key type id_resolver registered
+[    6.586744] Key type id_legacy registered
+[    6.591280] nfs4filelayout_init: NFSv4 File Layout Driver Registering...
+[    6.598836] Installing knfsd (copyright (C) 1996 okir@monad.swb.de).
+[    6.606408] FS-Cache: Netfs 'cifs' registered for caching
+[    6.612624] Key type cifs.spnego registered
+[    6.617355] Key type cifs.idmap registered
+[    6.622009] ntfs: driver 2.1.32 [Flags: R/W].
+[    6.626953] jffs2: version 2.2. (NAND) (SUMMARY)  Â© 2001-2006 Red Hat, Inc.
+[    6.634953] fuse init (API version 7.23)
+[    6.639660] JFS: nTxBlock = 4645, nTxLock = 37167
+[    6.650074] SGI XFS with ACLs, security attributes, realtime, debug enabled
+[    6.658558] NILFS version 2 loaded
+[    6.663393] gfs2: GFS2 installed
+[    6.667097] FS-Cache: Netfs 'ceph' registered for caching
+[    6.673197] ceph: loaded (mds proto 32)
+[    6.680413] NET: Registered protocol family 38
+[    6.685494] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 252)
+[    6.693924] io scheduler noop registered
+[    6.698341] io scheduler deadline registered
+[    6.703180] io scheduler cfq registered (default)
+[    6.709060] --- debug : rtd1295_pwm_probe ---- 
+[    6.714194] --- set_real_freq_by_target_div debug : real_freq=26367, osd=1, ocd=255
+[    6.722826] --- debug : rtd1295_pwm_probe - hwpwm=(0) enable=(1) duty_rate=(50) clksrc_div=(1) clkout_div=(255)---  
+[    6.734683] --- debug : rtd1295_pwm_probe - defualt output frequence = 26367Hz ---  
+[    6.743406] --- set_real_freq_by_target_div debug : real_freq=26367, osd=1, ocd=255
+[    6.752033] --- debug : rtd1295_pwm_probe - hwpwm=(1) enable=(1) duty_rate=(50) clksrc_div=(1) clkout_div=(255)---  
+[    6.763886] --- debug : rtd1295_pwm_probe - defualt output frequence = 26367Hz ---  
+[    6.772609] --- set_real_freq_by_target_div debug : real_freq=26367, osd=1, ocd=255
+[    6.781236] --- debug : rtd1295_pwm_probe - hwpwm=(2) enable=(0) duty_rate=(50) clksrc_div=(1) clkout_div=(255)---  
+[    6.793087] --- debug : rtd1295_pwm_probe - defualt output frequence = 26367Hz ---  
+[    6.801813] --- set_real_freq_by_target_div debug : real_freq=26367, osd=1, ocd=255
+[    6.810442] --- debug : rtd1295_pwm_probe - hwpwm=(3) enable=(0) duty_rate=(50) clksrc_div=(1) clkout_div=(255)---  
+[    6.822295] --- debug : rtd1295_pwm_probe - defualt output frequence = 26367Hz ---  
+[    6.831180] --- debug : pwm_set_register -- set index 0 OCD=255,CD=127,CSD=1
+[    6.839116] --- debug :  ---- pwm_set_register --- done! 
+[    6.845201] --- debug : pwm_set_register -- set index 1 OCD=255,CD=127,CSD=1
+[    6.853142] --- debug :  ---- pwm_set_register --- done! 
+[    6.859215] --- debug : pwm_set_register -- set index 2 OCD=0,CD=0,CSD=0
+[    6.866763] --- debug :  ---- pwm_set_register --- done! 
+[    6.872845] --- debug : pwm_set_register -- set index 3 OCD=0,CD=0,CSD=0
+[    6.880395] --- debug :  ---- pwm_set_register --- done! 
+[    6.886470] --- debug : rtd1295_pwm_probe --  done! !
+[    6.892457] [drivers/video/fbdev/rtk/rtk_fb.c rtk_fb_probe] 
+[    6.892457] 
+[    6.902232] [drivers/video/fbdev/rtk/rtk_fb.c rtk_fb_update_by_memory] [1920 x 1080] addr:0xf02e000 size:0xfd2000 irq:0
+[    6.902232] 
+[    6.917033] [drivers/video/fbdev/rtk/rtk_fb.c rtk_fb_update_by_memory] numberofbuffers 2
+[    6.917033] 
+[    6.928791] I/DC: ALLOC DC INFO BUFFER!
+[    6.933111] I/DC: rpc_common_base:ffffff800800c000 ipc:ffffff800800c0c4
+[    6.940659] I/DC: [DC_Init 1808]
+[    6.982233] Console: switching to colour frame buffer device 240x67
+[    7.027112] [drivers/video/fbdev/rtk/rtk_vfb.c rtk_vfb_probe] 
+[    7.027112] 
+[    7.038119] [drivers/video/fbdev/rtk/rtk_vfb.c rtk_vfb_update_by_memory] [3840 x 2160] addr:0xc0b7000 size:0x2f77000 irq:0
+[    7.038119] 
+[    7.053207] [drivers/video/fbdev/rtk/rtk_vfb.c rtk_vfb_update_by_memory] numberofbuffers 3
+[    7.053207] 
+[    7.065164] I/DC: [DC_Init 1808]
+[    7.069403] corectrl: CPU List = [ 1-3 ]
+[    7.074132] [SB2 DBG][sb2_dbg_init] Info 0x30000
+[    7.079327] [SB2 DBG][sb2_dbg_init] initialized
+[    7.084589] reset-rtk: DEASSERT    0x08022088 [0x00001f80 -> 0x00001f82] D 0x00000002, M 0x00000002
+[    7.095158] input: venus_IR_input as /devices/virtual/input/input0
+[    7.102390] rpc is not paused & suspended
+[    7.108701] rpc_int_base:ffffff8008276104 irq:25
+[    7.113794] [PUWRAP] begin pu_init
+[    7.117815] [PUWRAP] end pu_init result=0x0
+[    7.122630] [PUWRAP] pu_probe
+[    7.125989] [PUWRAP] success to probe pu wrapper device with USE_ION_ALLOCATOR
+[    7.134423] res.start:0x98007000, bonding_value:0x0
+[    7.139953] [VPUDRV] : get clock controller s_vpu_clk_ve1=0xffffffc03d76a380
+[    7.147897] [VPUDRV] : get clock controll
+[ROS: openRPC() intr_scpu_dev_r buf  0x00e2ffa1 s  0x00e2ffa1 e  0x00e4ffa1 i  0x00e2ffa1
+[ROS: openRPC() kern_scpu_dev_r buf  0x00f2ffa1 s  0x00f2ffa1 e  0x00f4ffa1 i  0x00f2ffa1
+[ROS: openStubRPC() intr_w buf  0x00e6ffa1 s  0x00e6ffa1 e  0x00e8ffa1 i  0x00e6ffa1
+[ROS: openStubRPC() kern_w buf  0x00f4ffa1 s  0x00f4ffa1 e  0x00f6ffa1 i  0x00f4ffa1[AVCPU] Set Debug level flag  0x81bf32ac *flag  0x01bdf10c ucache  0xa1bdf10c 
+[AVCPU] Set Debug level *ptrDebugFlag  0x00000001 
+-------------------
+Audio Version = 33b72e6c50f903ac4e25f744f61b96bc925a2e32 (KylinAudio Commit Date = Sep 17 09:11:59 2018
+Common Version = 16728dabf73aaed6492e39c52f131775582f8b1e
+Binary src compiled at Sep 17 2018 15:37:36
+Note = 
+-------------------
+
+
+
+
+[A] gloabl malloc size  0x003ffd48 
+er s_vpu_clk_ve2=0xffffffc03d76a300
+[    7.222413] AudioIntrRead:154 can't find process for handling AudioIntrRead programID:98
+[    7.235442] reset-rtk: DEASSERT    0x0801a000 [0x9fd81355 -> 0x9fd83355] D 0x00002000, M 0x00002000
+[    7.245642] reset-rtk: DEASSERT    0x0801a000 [0x9fd83355 -> 0x9fd87355] D 0x00004000, M 0x00004000
+[    7.256004] VE3: ve3_probe
+[    7.259058] VE3 : base address get from DTB physical base addr=0x98048000, virtual base=0xffffff80093e8000, size=0x4000(actually=0x424)
+[    7.272910] VE3: get clock controller s_ve3_clk=0xffffffc03d765c00
+[    7.279882] ve3_pctrl_on
+[    7.282735] reset-rtk: ASSERT      0x0801a000 [0x9fd87355 -> 0x9fd87355] D 0x00000000, M 0x00008000
+[    7.292931] reset-rtk: DEASSERT    0x0801a000 [0x9fd87355 -> 0x9fd8f355] D 0x00008000, M 0x00008000
+[    7.303138] reset-rtk: DEASSERT    0x0801a000 [0x9fd8f355 -> 0x9fd8f355] D 0x00000000, M 0x00008000
+[    7.329869] Get cti: 0x13
+[    7.332810] VE3: dec kernel module. 
+[    7.336830] VE3: Init single core at 0x        98048000 IRQ=20
+[    7.343412] VE3: core[0] has HEVC
+[    7.343414] VE3: core[0] has VP9
+[    7.343416] VE3: core[0] has PP
+[    7.343789] VE3: module inserted. Major = 0
+[    7.343794] ve3_pctrl_off
+[    7.343858] memalloc: Linear Memory Allocator
+[    7.344074] jpu_probe
+[    7.344099] [JPUDRV] : jpu base address get from DTB physical base addr=0x9803e000, virtual base=0xffffff80093fa000, size=0x1000
+[    7.344210] [JPUDRV] : get clock controller s_jpu_clk=0xffffffc03d765480
+[    7.344220] reset-rtk: DEASSERT    0x0801c004 [0x0f840e3d -> 0x0f840e3f] D 0x00000002, M 0x00000002
+[    7.344240] s_jpu_irq:17 want to register jpu_irq_handler
+[    7.344268] [JPUDRV] success to probe jpu device with non reserved video memory
+[    7.344274] reset-rtk: ASSERT      0x0801c004 [0x0f840e3f -> 0x0f840e3d] D 0x00000002, M 0x00000002
+[    7.344336] jpu_init
+[    7.344339] end jpu_init result=0x0
+[    7.344447] misc rtk_lockapi: registered.
+[    7.345038] gmt-g2227 0-0012: g2227 version 03
+[    7.350705] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    7.351883] console [ttyS0] disabled
+[    7.451761] 98007800.serial0: ttyS0 at MMIO 0x98007800 (irq = 194, base_baud = 1687500) is a 16550A
+[    7.461985] console [ttyS0] enabled
+[    7.461985] console [ttyS0] enabled
+[    7.469475] bootconsole [uart0] disabled
+[    7.469475] bootconsole [uart0] disabled
+[    7.478207] [drm] Initialized drm 1.1.0 20060810
+[    7.491856] brd: module loaded
+[    7.499529] loop: module loaded
+[    7.502838] Loading iSCSI transport class v2.0-870.
+[    7.508126] iscsi: registered transport (tcp)
+[    7.513707] User interface thread started
+[    7.519593] Init thread started
+[    7.522853] Task management thread started
+[    7.522900] Management thread started
+[    7.522917] Target template copy_manager registered successfully
+[    7.523014] Target copy_manager_tgt for template copy_manager registered successfully
+[    7.523025] Using security group "copy_manager_tgt" for initiator "copy_manager_sess" (target copy_manager_tgt)
+[    7.523087] SCST version 3.4.0-pre1 loaded successfully (global max mem for commands ignored, per device 58MB)
+[    7.523112] Device handler "dev_raid" for type 12 registered successfully
+[    7.523152] ***WARNING***: Unable to find /var/lib/scst/vdev_mode_pages (err -2), saved mode pages disabled. You should create this directory manually or reinstall SCST
+[    7.523177] Virtual device handler vdisk_fileio for type 0 registered successfully
+[    7.523194] Virtual device handler vdisk_blockio for type 0 registered successfully
+[    7.523208] Virtual device handler vdisk_nullio for type 0 registered successfully
+[    7.523221] Virtual device handler vcdrom for type 5 registered successfully
+[    7.527069] Virtual device handler "scst_user" registered successfully
+[    7.527219] scst_user: Cleanup thread started
+[    7.527224] iSCSI SCST Target - version 3.4.0-pre1
+[    7.527227] Registered iSCSI transport: iSCSI-TCP
+[    7.536978] Target template iscsi registered successfully
+[    7.537035] Read thread for pool ffffffc03d30ae00 started
+[    7.537081] Read thread for pool ffffffc03d30ae00 started
+[    7.537120] Read thread for pool ffffffc03d30ae00 started
+[    7.537162] Read thread for pool ffffffc03d30ae00 started
+[    7.537206] Write thread for pool ffffffc03d30ae00 started
+[    7.537247] Write thread for pool ffffffc03d30ae00 started
+[    7.537285] Write thread for pool ffffffc03d30ae00 started
+[    7.537327] Write thread for pool ffffffc03d30ae00 started
+[    7.537333] Registered iSCSI transport: iSER
+[    7.555447] Target template scst_local registered successfully
+[    7.555621] Target scst_local_tgt for template scst_local registered successfully
+[    7.555635] Using security group "scst_local_tgt" for initiator "scst_local_host" (target scst_local_tgt)
+[    7.555910] scsi host0: scst_local
+[    7.557070] reset-rtk: ASSERT      0x0801a000 [0x9fd8f355 -> 0x9fd8f355] D 0x00000000, M 0x00000020
+[    7.557076] reset-rtk: ASSERT      0x0801a000 [0x9fd8f355 -> 0x9fd8f355] D 0x00000000, M 0x00000080
+[    7.659869] reset-rtk: DEASSERT    0x0801a000 [0x9fd8f355 -> 0x9fd8f375] D 0x00000020, M 0x00000020
+[    7.659875] reset-rtk: DEASSERT    0x0801a000 [0x9fd8f375 -> 0x9fd8f3f5] D 0x00000080, M 0x00000080
+[    7.659881] reset-rtk: ASSERT      0x08020050 [0x0000801f -> 0x0000801f] D 0x00000000, M 0x00000400
+[    7.659886] reset-rtk: ASSERT      0x08020050 [0x0000801f -> 0x0000801f] D 0x00000000, M 0x00000200
+[    7.769867] reset-rtk: DEASSERT    0x08020050 [0x0000801f -> 0x0000841f] D 0x00000400, M 0x00000400
+[    7.769873] reset-rtk: DEASSERT    0x08020050 [0x0000841f -> 0x0000861f] D 0x00000200, M 0x00000200
+[    7.789884] [SATA] spread-spectrum disable
+[    7.819925] [SATA] SATA calibrate = 20
+[    7.838777] reset-rtk: DEASSERT    0x0801a000 [0x9fd8f3f5 -> 0x9fd8f7f5] D 0x00000400, M 0x00000400
+[    7.868051] [SATA] spread-spectrum disable
+[    7.902294] [SATA] SATA calibrate = 20
+[    7.921142] reset-rtk: DEASSERT    0x08020050 [0x0000861f -> 0x0000869f] D 0x00000080, M 0x00000080
+[    7.930448] ahci_rtk 9803f000.sata: masking port_map 0x3 -> 0x3
+[    7.936567] ahci_rtk 9803f000.sata: AHCI 0001.0301 32 slots 2 ports 6 Gbps 0x3 impl platform mode
+[    7.945673] ahci_rtk 9803f000.sata: flags: ncq sntf pm led clo only pmp fbs pio slum part ccc sadm sds apst 
+[    7.957215] scsi host1: ahci_rtk
+[    7.960850] scsi host2: ahci_rtk
+[    7.964337] ata1: SATA max UDMA/133 mmio [mem 0x9803f000-0x9803ffff] port 0x100 irq 13
+[    7.972459] ata2: SATA max UDMA/133 mmio [mem 0x9803f000-0x9803ffff] port 0x180 irq 13
+[    7.980885] RtkSFC MTD init ...
+[    7.984103] NOR flash support list ..
+[    7.987853] (X) HWSEMA support.
+[    7.991081] (V) AUTO_HW_POLL support.
+[    7.994832] (X) 4Bytes mode support.
+[    7.998491] (X) Max erase size support.
+[    8.002426] (V) Sfc_delay support.
+[    8.005909] (X) Multi-read support.
+[    8.010286] --RDID Seq: 0xef | 0x40 | 0x18
+[    8.014483] RtkSFC MTD: WINBOND 25Q128BVFG(W25Q128BVFIG) detected.
+[    8.020819] SFC_4KB_ERASE
+[    8.023505] Supported Erase Size: 64KB 4KB.
+[    8.027788] RtkSFC MTD: Enable RtkSFC MD PP callback function.
+[    8.033770] MD_READ Enable..
+[    8.036719] MD_WRITE Enable..
+[    8.039810] [rtk_sfc_attach]descriptor size 0x1000000
+[    8.045005] 7 cmdlinepart partitions found on MTD device RtkSFC
+[    8.051076] Rtk SFC: using dynamic partition
+[    8.055450] Creating 7 MTD partitions on "RtkSFC":
+[    8.060370] 0x000000000000-0x000000020000 : "factory"
+[    8.066432] 0x000000020000-0x0000000a0000 : "uboot"
+[    8.072220] 0x0000000a0000-0x0000000f0000 : "logo"
+[    8.077900] 0x0000000f0000-0x000000250000 : "afw"
+[    8.083521] 0x000000250000-0x000000260000 : "dtb"
+[    8.089102] 0x000000260000-0x0000009e0000 : "kernel"
+[    8.094991] 0x0000009e0000-0x000000f60000 : "initrd"
+[    8.100929] Rtk SFC: (for SST/SPANSION/MXIC SPI Flash)
+[    8.106199] Realtek SFC Driver is successfully installing.
+[    8.106199] 
+[    8.113352] Ethernet Channel Bonding Driver: v3.7.1 (April 27, 2011)
+[    8.121711] r8169 Gigabit Ethernet driver 2.25-LK-NAPI loaded
+[    8.127722] rtl_init_one: gpio -2 is not valid
+[    8.150633] r8169 98016000.gmac eth0: RTL8168g/8111g at 0xffffff80097fe000, 6c:bf:b5:01:14:90, XID 10900800 IRQ 12
+[    8.161250] r8169 98016000.gmac eth0: jumbo features [frames: 9200 bytes, tx checksumming: ko]
+[    8.170134] [Ethernet] Watch link status change.
+[    8.170281] rtk_rbus_init:90
+[    8.170382] rtk_rbus_probe:27
+[    8.170640] rtk_refclk_init:89
+[    8.170742] rtk_refclk_probe:27
+[    8.171240] rtk_se_probe: res.start=0x000000009800c000 res.end=0x000000009800cfff
+[    8.171246] rtk_se_probe: mem[0] phys:0x000000009800c000 virt:0xffffff8012f8c000 size:0x1000 type:1 name:SE reg space
+[    8.174972] rtk_se_probe: mem[1] phys:0x0000000011117000 virt:0xffffff8012f8e000 size:0x1000 type:1 name:SE driver data
+[    8.175035] rtk_se_probe: mem[2] phys:0x0000000011118000 virt:0xffffff8012f90000 size:0x8000 type:1 name:SE command queue
+[    8.175056] rtk_se_probe: irq=22
+[    8.175278] Engine[0] Ctrl:00000004 Base:11118000 ReadPtr:11118000 WritePtr:11118000 Limit:1111c000
+[    8.175285] Engine[1] Ctrl:00000004 Base:1111c000 ReadPtr:1111c000 WritePtr:1111c000 Limit:11120000
+[    8.175603] rtk_md_probe: res.start=0x000000009800b000 res.end=0x000000009800bfff
+[    8.175610] rtk_md_probe: mem[0] phys:0x000000009800b000 virt:0xffffff8012f9c000 size:0x1000 type:1 name:MD reg space
+[    8.175694] rtk_md_probe: mem[1] phys:0x0000000011137000 virt:0xffffff8012f9e000 size:0x1000 type:1 name:MD driver data
+[    8.175751] rtk_md_probe: mem[2] phys:0x0000000011138000 virt:0xffffff8012fa0000 size:0x4000 type:1 name:MD command queue
+[    8.175771] rtk_md_probe: irq=21
+[    8.175979] Engine[0] Ctrl:0000000c Base:11138000 ReadPtr:11138000 WritePtr:11138000 Limit:1113c000
+[    8.176152] rtk-usb-phy-rle0599 98013824.usb_phy_rle0599: Probe RTK USB 2.0 RLE0599 PHY
+[    8.176394] rtk-usb2phy 98028280.dwc3_drd_usb2phy: drivers/usb/phy/phy-rtk-usb2.c Probe RTK USB 2.0 PHY
+[    8.176454] rtk-usb2phy 98031280.dwc3_u2host_usb2phy: drivers/usb/phy/phy-rtk-usb2.c Probe RTK USB 2.0 PHY
+[    8.176519] rtk-usb2phy 981f8280.dwc3_u3host_usb2phy: drivers/usb/phy/phy-rtk-usb2.c Probe RTK USB 2.0 PHY
+[    8.176730] rtk-usb3phy 98013210.dwc3_drd_usb3phy: drivers/usb/phy/phy-rtk-usb3.c Probe RTK USB 3.0 PHY
+[    8.176783] rtk-usb3phy 98013e10.dwc3_u3host_usb3phy: drivers/usb/phy/phy-rtk-usb3.c Probe RTK USB 3.0 PHY
+[    8.177145] rtk-dwc3 98013200.rtk_dwc3_drd: Probe Realtek-SoC USB DWC3 Host Controller
+[    8.177578] dwc3 98020000.dwc3_drd: rtk dwc3 fixed dwc3 globals register start address 0xffffff8012ff8100
+[    8.177745] rtk-usb3phy 98013210.dwc3_drd_usb3phy: drivers/usb/phy/phy-rtk-usb3.c Init RTK USB 3.0 PHY
+[    8.182891] rtk-usb3phy 98013210.dwc3_drd_usb3phy: drivers/usb/phy/phy-rtk-usb3.c Initialized RTK USB 3.0 PHY
+[    8.329884] ata1: SATA link down (SStatus 0 SControl 300)
+[    8.382916] rtk-usb2phy 98028280.dwc3_drd_usb2phy: drivers/usb/phy/phy-rtk-usb2.c Init RTK USB 2.0 PHY
+[    8.382950] rtk-usb2phy 98028280.dwc3_drd_usb2phy: drivers/usb/phy/phy-rtk-usb2.c Initialized RTK USB 2.0 PHY
+[    8.683011] dwc3 98020000.dwc3_drd: dwc3_host_init
+[    8.688150] rtk-usb-power-manager 98000000.rtk_usb_power_manager: rtk_usb_init_power_on for 98013200.rtk_dwc3_drd
+[    8.698685] rtk-usb-power-manager 98000000.rtk_usb_power_manager: rtk_usb_drd_gpio_power_on_off 1294 type c power on by gpio (id=102) OK
+[    8.711253] rtk-dwc3 98013200.rtk_dwc3_drd: dwc3_rtk_probe ok! (take 540 ms)
+[    8.718511] rtk-dwc3 98013c00.rtk_dwc3_u2host: Probe Realtek-SoC USB DWC3 Host Controller
+[    8.727286] dwc3 98029000.dwc3_u2host: rtk dwc3 fixed dwc3 globals register start address 0xffffff8013008100
+[    8.937501] rtk-usb2phy 98031280.dwc3_u2host_usb2phy: drivers/usb/phy/phy-rtk-usb2.c Init RTK USB 2.0 PHY
+[    8.947336] rtk-usb2phy 98031280.dwc3_u2host_usb2phy: drivers/usb/phy/phy-rtk-usb2.c Initialized RTK USB 2.0 PHY
+[    9.257859] dwc3 98029000.dwc3_u2host: dwc3_host_init
+[    9.263247] rtk-usb-power-manager 98000000.rtk_usb_power_manager: rtk_usb_init_power_on for 98013c00.rtk_dwc3_u2host
+[    9.274036] rtk-dwc3 98013c00.rtk_dwc3_u2host: dwc3_rtk_probe ok! (take 560 ms)
+[    9.281577] rtk-dwc3 98013e00.rtk_dwc3_u3host: Probe Realtek-SoC USB DWC3 Host Controller
+[    9.290347] dwc3 981f0000.dwc3_u3host: rtk dwc3 fixed dwc3 globals register start address 0xffffff8013018100
+[    9.300558] rtk-usb3phy 98013e10.dwc3_u3host_usb3phy: drivers/usb/phy/phy-rtk-usb3.c Init RTK USB 3.0 PHY
+[    9.315507] rtk-usb3phy 98013e10.dwc3_u3host_usb3phy: drivers/usb/phy/phy-rtk-usb3.c Initialized RTK USB 3.0 PHY
+[    9.525954] rtk-usb2phy 981f8280.dwc3_u3host_usb2phy: drivers/usb/phy/phy-rtk-usb2.c Init RTK USB 2.0 PHY
+[    9.535789] rtk-usb2phy 981f8280.dwc3_u3host_usb2phy: drivers/usb/phy/phy-rtk-usb2.c Initialized RTK USB 2.0 PHY
+[    9.846250] dwc3 981f0000.dwc3_u3host: dwc3_host_init
+[    9.851646] rtk-usb-power-manager 98000000.rtk_usb_power_manager: rtk_usb_init_power_on for 98013e00.rtk_dwc3_u3host
+[    9.862473] rtk-dwc3 98013e00.rtk_dwc3_u3host: dwc3_rtk_probe ok! (take 580 ms)
+[    9.870159] ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver
+[    9.876859] ehci-pci: EHCI PCI platform driver
+[    9.881486] ehci-rtk: EHCI realtek driver init
+[    9.886115] rtk-ehci 98013000.ehci: Probe Realtek-SoC USB EHCI Host Controller
+[    9.893543] rtk-usb-phy-rle0599 98013824.usb_phy_rle0599: Init RTK USB phy-rle0599
+[    9.901349] rtk-usb-phy-rle0599 98013824.usb_phy_rle0599: drivers/usb/phy/phy-rtk-rle0599.c Initialized RTK USB PHY rle0599
+[    9.912791] rtk-ehci 98013000.ehci: EHCI Host Controller
+[    9.918249] rtk-ehci 98013000.ehci: new USB bus registered, assigned bus number 1
+[    9.926208] rtk-ehci 98013000.ehci: irq 10, io mem 0x98013000
+[    9.949876] rtk-ehci 98013000.ehci: USB 2.0 started, EHCI 1.00
+[    9.956498] hub 1-0:1.0: USB hub found
+[    9.960379] hub 1-0:1.0: 1 port detected
+[    9.964739] rtk-usb-power-manager 98000000.rtk_usb_power_manager: rtk_usb_init_power_on for 98013000.ehci
+[    9.974557] rtk-ehci 98013000.ehci: ehci_rtk_drv_probe OK (take 90 ms)
+[    9.981407] ohci_hcd: USB 1.1 'Open' Host Controller (OHCI) Driver
+[    9.987829] rtk-ohci 98013400.ohci: Probe Realtek-SoC USB OHCI Host Controller
+[    9.995285] rtk-ohci 98013400.ohci: Rtk Dmp OHCI
+[   10.000039] rtk-ohci 98013400.ohci: new USB bus registered, assigned bus number 2
+[   10.007723] rtk-ohci 98013400.ohci: irq 10, io mem 0x98013400
+[   10.074390] hub 2-0:1.0: USB hub found
+[   10.078254] hub 2-0:1.0: 1 port detected
+[   10.082585] rtk-usb-power-manager 98000000.rtk_usb_power_manager: rtk_usb_init_power_on for 98013400.ohci
+[   10.092428] rtk-ohci 98013400.ohci: ohci_rtk_drv_probe OK (take 110 ms)
+[   10.099702] xhci-hcd xhci-hcd.2.auto: xHCI Host Controller
+[   10.105348] xhci-hcd xhci-hcd.2.auto: new USB bus registered, assigned bus number 3
+[   10.113649] xhci-hcd xhci-hcd.2.auto: hcc params 0x0220fe64 hci version 0x110 quirks 0x00010010
+[   10.122581] xhci-hcd xhci-hcd.2.auto: irq 10, io mem 0x98020000
+[   10.129164] hub 3-0:1.0: USB hub found
+[   10.133039] hub 3-0:1.0: 1 port detected
+[   10.137284] xhci-hcd xhci-hcd.2.auto: xHCI Host Controller
+[   10.142923] xhci-hcd xhci-hcd.2.auto: new USB bus registered, assigned bus number 4
+[   10.150823] usb usb4: We don't know the algorithms for LPM for this host, disabling LPM.
+[   10.159589] hub 4-0:1.0: USB hub found
+[   10.163467] hub 4-0:1.0: 1 port detected
+[   10.167771] xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[   10.173415] xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 5
+[   10.181716] xhci-hcd xhci-hcd.5.auto: hcc params 0x0220fe64 hci version 0x110 quirks 0x00010010
+[   10.190649] xhci-hcd xhci-hcd.5.auto: irq 10, io mem 0x98029000
+[   10.197205] hub 5-0:1.0: USB hub found
+[   10.201078] hub 5-0:1.0: 1 port detected
+[   10.205326] xhci-hcd xhci-hcd.5.auto: xHCI Host Controller
+[   10.210970] xhci-hcd xhci-hcd.5.auto: new USB bus registered, assigned bus number 6
+[   10.218859] usb usb6: We don't know the algorithms for LPM for this host, disabling LPM.
+[   10.227641] hub 6-0:1.0: USB hub found
+[   10.231520] hub 6-0:1.0: config failed, hub doesn't have any ports! (err -19)
+[   10.239029] xhci-hcd xhci-hcd.8.auto: xHCI Host Controller
+[   10.244693] xhci-hcd xhci-hcd.8.auto: new USB bus registered, assigned bus number 7
+[   10.252982] xhci-hcd xhci-hcd.8.auto: hcc params 0x0220fe64 hci version 0x110 quirks 0x00010010
+[   10.261921] xhci-hcd xhci-hcd.8.auto: irq 10, io mem 0x981f0000
+[   10.268486] hub 7-0:1.0: USB hub found
+[   10.272360] hub 7-0:1.0: 1 port detected
+[   10.276605] xhci-hcd xhci-hcd.8.auto: xHCI Host Controller
+[   10.282249] xhci-hcd xhci-hcd.8.auto: new USB bus registered, assigned bus number 8
+[   10.290146] usb usb8: We don't know the algorithms for LPM for this host, disabling LPM.
+[   10.298910] hub 8-0:1.0: USB hub found
+[   10.302789] hub 8-0:1.0: 1 port detected
+[   10.307266] usbcore: registered new interface driver usb-storage
+[   10.313781] mousedev: PS/2 mouse device common for all mice
+[   10.320034] rtc_rtk 9801b600.rtc: rtk_rtc already enabled 
+[   10.325852] rtc_rtk 9801b600.rtc: rtc core: registered rtc as rtc0
+[   10.332287] i2c /dev entries driver
+[   10.336626] [HDMITx] Driver init
+[   10.339950] [HDMITx] Mode = HDMI
+[   10.343401] [HDMITx] hotplug gpio(107)
+[   10.347375] [HDMITx] [setup_mute_gpio]
+[   10.351234] [HDMITx] Undefined gpio-audio-mute, sikp setup_mute_gpio
+[   10.357741] [HDMITx] [register_hdmitx_scdcrr]
+[   10.362225] [HDMITx] Skip SCDC RR init
+[   10.366261] [HDMITx] Driver init done
+[   10.370590] md: linear personality registered for level -1
+[   10.376218] md: raid0 personality registered for level 0
+[   10.381682] md: raid1 personality registered for level 1
+[   10.387130] md: raid10 personality registered for level 10
+[   10.392899] md: raid6 personality registered for level 6
+[   10.398341] md: raid5 personality registered for level 5
+[   10.403800] md: raid4 personality registered for level 4
+[   10.409251] md: multipath personality registered for level -4
+[   10.415155] md: faulty personality registered for level -5
+[   10.420985] device-mapper: uevent: version 1.0.3
+[   10.425914] device-mapper: ioctl: 4.34.0-ioctl (2015-10-28) initialised: dm-devel@redhat.com
+[   10.434802] device-mapper: multipath: version 1.10.0 loaded
+[   10.440532] device-mapper: multipath round-robin: version 1.0.0 loaded
+[   10.447222] device-mapper: multipath queue-length: version 0.1.0 loaded
+[   10.454009] device-mapper: multipath service-time: version 0.2.0 loaded
+[   10.460847] device-mapper: dm-log-userspace: version 1.3.0 loaded
+[   10.467098] device-mapper: raid: Loading target version 1.7.0
+[   10.473034] device-mapper: cache cleaner: version 1.0.0 loaded
+[   10.479216] rtk129x-cpufreq dvfs: use regulator(s)
+[   10.484259] cpufreq: freq_table: frequency-table,rev1:
+[   10.489524] cpufreq:  0 .volidx = 0 .freq =  300000 
+[   10.494620] cpufreq:  1 .volidx = 0 .freq =  400000 
+[   10.499705] cpufreq:  2 .volidx = 0 .freq =  500000 
+[   10.504797] cpufreq:  3 .volidx = 2 .freq =  600000 
+[   10.509889] cpufreq:  4 .volidx = 3 .freq =  700000 
+[   10.514973] cpufreq:  5 .volidx = 4 .freq =  800000 
+[   10.520055] cpufreq:  6 .volidx = 5 .freq =  900000 
+[   10.525140] cpufreq:  7 .volidx = 6 .freq = 1000000 
+[   10.530232] cpufreq:  8 .volidx = 8 .freq = 1100000 
+[   10.535317] cpufreq:  9 .volidx = 10 .freq = 1200000 
+[   10.540497] cpufreq: 10 .volidx = 12 .freq = 1300000 
+[   10.545670] cpufreq: 11 .volidx = 13 .freq = 1400000 
+[   10.550854] cpufreq: volt_table: voltage-table:
+[   10.555496] cpufreq: 0 .vdd_min =  800000 .vdd_max =  800000 
+[   10.561389] cpufreq: 1 .vdd_min =  812500 .vdd_max =  812500 
+[   10.567273] cpufreq: 2 .vdd_min =  825000 .vdd_max =  825000 
+[   10.573165] cpufreq: 3 .vdd_min =  850000 .vdd_max =  850000 
+[   10.579050] cpufreq: 4 .vdd_min =  875000 .vdd_max =  875000 
+[   10.584944] cpufreq: 5 .vdd_min =  900000 .vdd_max =  900000 
+[   10.590838] cpufreq: 6 .vdd_min =  925000 .vdd_max =  925000 
+[   10.596722] cpufreq: 7 .vdd_min =  950000 .vdd_max =  950000 
+[   10.602616] cpufreq: 8 .vdd_min =  962500 .vdd_max =  962500 
+[   10.608501] cpufreq: 9 .vdd_min =  975000 .vdd_max =  975000 
+[   10.614398] cpufreq: 10 .vdd_min = 1012500 .vdd_max = 1012500 
+[   10.620380] cpufreq: 11 .vdd_min = 1025000 .vdd_max = 1025000 
+[   10.626354] cpufreq: 12 .vdd_min = 1062500 .vdd_max = 1062500 
+[   10.632335] cpufreq: 13 .vdd_min = 1100000 .vdd_max = 1100000 
+[   10.638309] cpufreq: volt_table: l2-voltage-table:
+[   10.643225] cpufreq: 0 .vdd_min =  900000 .vdd_max =  900000 
+[   10.649110] cpufreq: 1 .vdd_min =  900000 .vdd_max =  900000 
+[   10.655001] cpufreq: 2 .vdd_min =  900000 .vdd_max =  900000 
+[   10.660894] cpufreq: 3 .vdd_min =  900000 .vdd_max =  900000 
+[   10.666779] cpufreq: 4 .vdd_min =  900000 .vdd_max =  900000 
+[   10.672670] cpufreq: 5 .vdd_min =  900000 .vdd_max =  900000 
+[   10.678555] cpufreq: 6 .vdd_min =  900000 .vdd_max =  900000 
+[   10.684449] cpufreq: 7 .vdd_min =  900000 .vdd_max =  900000 
+[   10.690342] cpufreq: 8 .vdd_min =  900000 .vdd_max =  900000 
+[   10.696227] cpufreq: 9 .vdd_min =  900000 .vdd_max =  900000 
+[   10.702120] cpufreq: 10 .vdd_min =  950000 .vdd_max =  950000 
+[   10.708094] cpufreq: 11 .vdd_min =  950000 .vdd_max =  950000 
+[   10.714077] cpufreq: 12 .vdd_min = 1000000 .vdd_max = 1000000 
+[   10.720060] cpufreq: 13 .vdd_min = 1000000 .vdd_max = 1000000 
+[   10.728685] hidraw: raw HID events driver (C) Jiri Kosina
+[   10.734321] usbcore: registered new interface driver usbhid
+[   10.740030] usbhid: USB HID core driver
+[   10.744046] ashmem: initialized
+[   10.748405] usbcore: registered new interface driver snd-usb-audio
+[   10.754989] Netfilter messages via NETLINK v0.30.
+[   10.759818] nfnl_acct: registering with nfnetlink.
+[   10.764763] nf_conntrack version 0.5.0 (4645 buckets, 18580 max)
+[   10.771027] ctnetlink v0.93: registering with nfnetlink.
+[   10.776622] NET: Registered protocol family 10
+[   10.781719] NET: Registered protocol family 17
+[   10.786296] bridge: automatic filtering via arp/ip/ip6tables has been deprecated. Update your scripts to load br_netfilter if you need this.
+[   10.799270] Bridge firewalling registered
+[   10.803597] RPC: Registered rdma transport module.
+[   10.808537] NET: Registered protocol family 33
+[   10.813098] Key type rxrpc registered
+[   10.816846] Key type rxrpc_s registered
+[   10.820795] 8021q: 802.1Q VLAN Support v1.8
+[   10.825103] Key type dns_resolver registered
+[   10.829483] Key type ceph registered
+[   10.833200] libceph: loaded (mon/osd proto 15/24)
+[   10.838604] kAFS: Red Hat AFS client v0.1 registering.
+[   10.843903] FS-Cache: Netfs 'afs' registered for caching
+[   10.849944] Btrfs loaded, debug=on, assert=on, integrity-checker=on
+[   10.856393] BTRFS: selftest: Running btrfs free space cache tests
+[   10.862662] BTRFS: selftest: Running extent only tests
+[   10.867935] BTRFS: selftest: Running bitmap only tests
+[   10.873216] BTRFS: selftest: Running bitmap and extent tests
+[   10.879022] BTRFS: selftest: Running space stealing from bitmap to extent
+[   10.886950] BTRFS: selftest: Free space cache tests finished
+[   10.892748] BTRFS: selftest: Running extent buffer operation tests
+[   10.898897] BTRFS: selftest: Running btrfs_split_item tests
+[   10.904825] BTRFS: selftest: Running find delalloc tests
+[   11.078554] BTRFS: selftest: Running btrfs_get_extent tests
+[   11.084493] BTRFS: selftest: Running hole first btrfs_get_extent test
+[   11.091157] BTRFS: selftest: Running outstanding_extents tests
+[   11.097188] BTRFS: selftest: Running qgroup tests
+[   11.102013] BTRFS: selftest: Qgroup basic add
+[   11.106532] BTRFS: selftest: Qgroup multiple refs test
+[   11.195624] Key type encrypted registered
+[   11.200031] [RTD129x PCIE Slot2] 9803b000.pcie2: PCIE host driver initial begin.
+[   11.207607] [RTD129x PCIE Slot2] 9803b000.pcie2: Speed Mode: GEN2
+[   11.214057] reset-rtk: DEASSERT    0x0801c004 [0x0f840e3d -> 0x0f8c0e3d] D 0x00080000, M 0x00080000
+[   11.223325] reset-rtk: DEASSERT    0x0801c004 [0x0f8c0e3d -> 0x0f8e0e3d] D 0x00020000, M 0x00020000
+[   11.232591] reset-rtk: DEASSERT    0x0801c004 [0x0f8e0e3d -> 0x0f9e0e3d] D 0x00100000, M 0x00100000
+[   11.241862] reset-rtk: DEASSERT    0x0801c004 [0x0f9e0e3d -> 0x0fbe0e3d] D 0x00200000, M 0x00200000
+[   11.251128] reset-rtk: DEASSERT    0x0801c004 [0x0fbe0e3d -> 0x0ffe0e3d] D 0x00400000, M 0x00400000
+[   11.260394] reset-rtk: DEASSERT    0x0801c004 [0x0ffe0e3d -> 0x0fff0e3d] D 0x00010000, M 0x00010000
+[   11.269655] reset-rtk: DEASSERT    0x08020050 [0x0000869f -> 0x0000c69f] D 0x00004000, M 0x00004000
+[   11.509869] 
+[   11.509869] ==========0xCB4:10000===============
+[   11.516111] [RTD129x PCIE Slot2] 9803b000.pcie2: PCIE device has link down in slot 2
+[   11.524043] [RTD129x PCIE Slot2] 9803b000.pcie2: rtk_pcie2_hw_initial fail
+[   11.531097] [RTD129x PCIE Slot2]: probe of 9803b000.pcie2 failed with error -22
+[   11.639861] [RTD129x PCIE Slot1] 9804e000.pcie: PCIE host driver initial begin.
+[   11.647412] rtk_pcie_probe: gpio -2 is not valid
+[   11.652182] reset-rtk: ASSERT      0x0801c004 [0x0fff0e3d -> 0x0fff0e3d] D 0x00000000, M 0x00000040
+[   11.661450] reset-rtk: ASSERT      0x0801c004 [0x0fff0e3d -> 0x0fff0e3d] D 0x00000000, M 0x00000100
+[   11.670715] reset-rtk: ASSERT      0x0801c004 [0x0fff0e3d -> 0x0fff0e3d] D 0x00000000, M 0x00002000
+[   11.679981] reset-rtk: ASSERT      0x0801c004 [0x0fff0e3d -> 0x0fff0e3d] D 0x00000000, M 0x00004000
+[   11.689242] reset-rtk: ASSERT      0x0801c004 [0x0fff0e3d -> 0x0fff0e3d] D 0x00000000, M 0x00008000
+[   11.698506] reset-rtk: ASSERT      0x0801c004 [0x0fff0e3d -> 0x0fff0e3d] D 0x00000000, M 0x00000080
+[   11.707771] reset-rtk: ASSERT      0x08020050 [0x0000c69f -> 0x0000c69f] D 0x00000000, M 0x00002000
+[   11.717055] reset-rtk: DEASSERT    0x0801c004 [0x0fff0e3d -> 0x0fff0e7d] D 0x00000040, M 0x00000040
+[   11.726320] reset-rtk: DEASSERT    0x0801c004 [0x0fff0e7d -> 0x0fff0f7d] D 0x00000100, M 0x00000100
+[   11.735586] reset-rtk: DEASSERT    0x0801c004 [0x0fff0f7d -> 0x0fff2f7d] D 0x00002000, M 0x00002000
+[   11.744851] reset-rtk: DEASSERT    0x0801c004 [0x0fff2f7d -> 0x0fff6f7d] D 0x00004000, M 0x00004000
+[   11.754116] reset-rtk: DEASSERT    0x0801c004 [0x0fff6f7d -> 0x0fffef7d] D 0x00008000, M 0x00008000
+[   11.763381] reset-rtk: DEASSERT    0x0801c004 [0x0fffef7d -> 0x0fffeffd] D 0x00000080, M 0x00000080
+[   11.772646] reset-rtk: DEASSERT    0x08020050 [0x0000c69f -> 0x0000e69f] D 0x00002000, M 0x00002000
+[   12.069879] reset-rtk: ASSERT      0x0801c004 [0x0fffeffd -> 0x0fffefbd] D 0x00000040, M 0x00000040
+[   12.079140] reset-rtk: ASSERT      0x0801c004 [0x0fffefbd -> 0x0fffeebd] D 0x00000100, M 0x00000100
+[   12.088405] reset-rtk: ASSERT      0x0801c004 [0x0fffeebd -> 0x0fffcebd] D 0x00002000, M 0x00002000
+[   12.097671] reset-rtk: ASSERT      0x0801c004 [0x0fffcebd -> 0x0fff8ebd] D 0x00004000, M 0x00004000
+[   12.106936] reset-rtk: ASSERT      0x0801c004 [0x0fff8ebd -> 0x0fff0ebd] D 0x00008000, M 0x00008000
+[   12.116200] reset-rtk: ASSERT      0x0801c004 [0x0fff0ebd -> 0x0fff0e3d] D 0x00000080, M 0x00000080
+[   12.125467] reset-rtk: ASSERT      0x08020050 [0x0000e69f -> 0x0000c69f] D 0x00002000, M 0x00002000
+[   12.134739] [RTD129x PCIE Slot1] 9804e000.pcie: PCIE device has link down in slot 1
+[   12.142583] [RTD129x PCIE Slot1] 9804e000.pcie: rtk_pcie_hw_initial fail
+[   12.149447] [RTD129x PCIE Slot1]: probe of 9804e000.pcie failed with error -22
+[   12.157039] scpu wrappee irq 23, scpu_wrap_addr 0xffffff80130a0000
+[   12.157039] 
+[   12.165809] [SCPU_WRAPPER] initialized
+[   12.169792] rtk-fan 9801bc00.rtk_fan: rtk_fan_probe Enter ..
+[   12.175630] reset-rtk: DEASSERT    0x08020050 [0x0000c69f -> 0x0000ce9f] D 0x00000800, M 0x00000800
+[   12.184919] --- debug : rtd1295_pwm_config : hwpwm=0, enable=1 duty_ns=18939 period_ns=37878
+[   12.193564] --- debug : target_div=1022, real_div=1020, osd=1, ocd=254
+[   12.200252] --- set_real_freq_by_target_freq debug : hwpwm=0, target_freq=26400, real_freq=26470, osd=1, ocd=254
+[   12.210674] --- set_real_period_by_target_period debug : hwpwm=0, target_period_ns=37878 (freq=26400), real_period_ns=37778 (real_freq=26470), osd=1, ocd=254
+[   12.225096] --- debug : pwm_set_register -- set index 0 OCD=254,CD=126,CSD=1
+[   12.232317] --- debug :  ---- pwm_set_register --- done! 
+[   12.237859] rtk-fan 9801bc00.rtk_fan: rtk_fan_probe Exit
+[   12.243342] DRM rtk_platform_drm_init
+[   12.247232] DRM rtk_platform_drm_probe
+[   12.251077] DRM rtk_drm_init
+[   12.254026] RTK DRM initialize, driver name: realtek, version 1.5
+[   12.260719] DRM rtk_drm_load 191
+[   12.264072] DRM rtk_crtc_create 435
+[   12.267684] DRM rtk_connector_create 185
+[   12.271792] [drm] Supports vblank timestamp caching Rev 2 (21.10.2013).
+[   12.278564] [drm] No driver support for vblank timestamp query.
+[   12.284653] create vblank thread success
+[   12.288670] DRM rtk_drm_load 265
+[   12.291981] [drm] Initialized realtek 1.5.0 20170207 on minor 0
+[   12.298142] rtc_rtk 9801b600.rtc: setting system clock to 2021-04-20 01:10:36 UTC (1618881036)
+[   12.307097] v4l2loopback driver version 0.10.0 loaded
+[   12.318666] thermal cooling_device0: thermal-cpufreq-0 bind to TP0: 1 -> 6, ret = 0
+[   12.326525] thermal cooling_device0: thermal-cpufreq-0 bind to TP1: 7 -> 11, ret = 0
+[   12.340530] corectrl: token_owenr X -> cpufreq
+[   12.347719] ALSA device list:
+[   12.350765]   #0: snd_alsa_rtk
+[   12.354084] ttyS0 - failed to request DMA
+[   13.369859] ata2: link is slow to respond, please be patient (ready=0)
+[   15.589871] ata2: SATA link up 3.0 Gbps (SStatus 123 SControl 300)
+[   15.598423] ata2.00: ATA-7: Maxtor 6V250F0, VA111630, max UDMA/133
+[   15.604758] ata2.00: 490234752 sectors, multi 0: LBA48 NCQ (depth 31/32)
+[   15.614815] ata2.00: configured for UDMA/133
+[   15.619548] scsi 2:0:0:0: Direct-Access     ATA      Maxtor 6V250F0   1630 PQ: 0 ANSI: 5
+[   15.628216] Attached to scsi2, channel 0, id 0, lun 0, type 0
+[   15.628224] sd 2:0:0:0: [sda] 490234752 512-byte logical blocks: (251 GB/234 GiB)
+[   15.628335] sd 2:0:0:0: [sda] Write Protect is off
+[   15.628388] sd 2:0:0:0: [sda] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
+[   15.695744]  sda: sda1 sda2
+[   15.699107] sd 2:0:0:0: [sda] Attached SCSI disk
+[   15.704070] Freeing unused kernel memory: 576K (ffffffc001120000 - ffffffc0011b0000)
+[   15.712014] This architecture does not have kernel memory protection.
+[   15.718608] execute ramdisk excutre command 
+[   15.732774] init: Console is alive
+[   20.549860] pctrl-rtk: rtk_powerctrl_manager: begin
+[   20.554902] pctrl-rtk: pctrl_l4_icg_jpeg::ENABLE_HW_PM, ret = -1
+[   20.566071] pctrl-rtk: pctrl_l4_icg_aio::ENABLE_HW_PM, ret = -1
+[   20.577154] pctrl-rtk: pctrl_video_dac::POWER_OFF, ret = 0
+[   20.587785] pctrl-rtk: pctrl_l4_icg_se::ENABLE_HW_PM, ret = 0
+[   20.598682] pctrl-rtk: pctrl_l4_icg_mipi::ENABLE_HW_PM, ret = -1
+[   20.609936] reset-rtk: DEASSERT    0x0801a000 [0x9fd8f7f5 -> 0xdfd8f7f5] D 0x40000000, M 0x40000000
+[   20.619199] reset-rtk: ASSERT      0x0801a000 [0xdfd8f7f5 -> 0x9fd8f7f5] D 0x40000000, M 0x40000000
+[   20.628465] pctrl-rtk: pctrl_mipi_aphy::POWER_OFF, ret = 0
+[   20.639274] pctrl-rtk: pctrl_l4_icg_scpu_wrapper::ENABLE_HW_PM, ret = 0
+[   20.671085] pctrl-rtk: pctrl_l4_icg_rsa::ENABLE_HW_PM, ret = 0
+[   20.687073] pctrl-rtk: pctrl_l4_icg_cp::ENABLE_HW_PM, ret = 0
+[   20.702978] pctrl-rtk: pctrl_l4_icg_gspi::ENABLE_HW_PM, ret = -1
+[   20.714184] pctrl-rtk: pctrl_nat::POWER_OFF, ret = 0
+[   20.724277] pctrl-rtk: pctrl_l4_icg_nat_wrap::ENABLE_HW_PM, ret = -1
+[   20.745854] pctrl-rtk: rtk_powerctrl_manager: done
+script mntcore get lock
+mdadm: No md superblock detected on /dev/sda2.
+start RAID core with disk:
+start RAID core failed
+script mntcore put lock
+script mntcore get lock
+mdadm: No md superblock detected on /dev/sda2.
+start RAID core with disk:
+start RAID core failed
+script mntcore put lock
+script mntcore get lock
+mdadm: No md superblock detected on /dev/sda2.
+start RAID core with disk:
+start RAID core failed
+script mntcore put lock
+[   31.253822] random: nonblocking pool is initialized
+script mntcore get lock
+mdadm: No md superblock detected on /dev/sda2.
+start RAID core with disk:
+start RAID core failed
+script mntcore put lock
+script mntcore get lock
+mdadm: No md superblock detected on /dev/sda2.
+start RAID core with disk:
+start RAID core failed
+script mntcore put lock
+script mntcore get lock
+mdadm: No md superblock detected on /dev/sda2.
+start RAID core with disk:
+start RAID core failed
+script mntcore put lock
+script mntcore get lock
+mdadm: No md superblock detected on /dev/sda2.
+start RAID core with disk:
+start RAID core failed
+script mntcore put lock
+script mntcore get lock
+mdadm: No md superblock detected on /dev/sda2.
+start RAID core with disk:
+start RAID core failed
+script mntcore put lock
+script mntcore get lock
+mdadm: No md superblock detected on /dev/sda2.
+start RAID core with disk:
+start RAID core failed
+script mntcore put lock
+script mntcore get lock
+mdadm: No md superblock detected on /dev/sda2.
+start RAID core [   65.952468] init:  mount core okkkkkkkkkkkkkkkkkkkkk!!!!
+with disk:
+start RAID core failed
+script mntcore put lock
+[   65.962206] led cmd gpio_keys_probe 712 
+[   65.968867] led cmd gpio_keys_probe 719 
+[   65.972895] led cmd gpio_keys_probe 722 
+[   65.976911] led cmd gpio_keys_probe 724 
+[   65.980929] led cmd gpio_keys_probe 729 
+[   65.984954] led cmd gpio_keys_probe 731 
+[   65.988968] led cmd gpio_keys_probe 740 
+[   65.992986] led cmd gpio_keys_probe 744 
+[   65.997000] led cmd gpio_keys_probe 746 
+[   66.001019] led cmd gpio_keys_probe 758 
+[   66.005033] led cmd gpio_keys_probe 769 
+[   66.009047] led cmd gpio_keys_probe 773 
+[   66.013066] led cmd gpio_keys_probe 776 
+[   66.017149] led cmd gpio_keys_probe 781 
+[   66.021205] led cmd gpio_keys_probe 786 
+[   66.025263] led cmd gpio_keys_probe 794 
+[   66.029394] input: gpio-keys as /devices/platform/gpio-keys/input/input1
+[   66.036363] led cmd gpio_keys_probe 802 
+[   66.050222] init: - preinit -
+Press the [f] key and hit [enter] to enter failsafe mode
+Press the [1], [2], [3] or [4] key and hit [enter] to select the debug level
+[   68.092809] procd: - early -
+[   68.724556] procd: - ubus -
+[   68.777853] procd: - init -
+Please press Enter to activate this console.
+[   68.846000] Loading modules backported from Linux version wt-2017-11-01-0-gfe248fc2c180
+[   68.854219] Backport generated by backports.git v4.14-rc2-1-31-g86cf0e5d
+[   70.082134] bonding: bond0 is being deleted...
+[   70.086876] bond0 (unregistering): Released all slaves
+[   70.272317] r8169 98016000.gmac eth0: rtl_csiar_cond == 0 (loop: 100, delay: 10).
+[   70.281279] r8169 98016000.gmac eth0: rtl_csiar_cond == 1 (loop: 100, delay: 10).
+[   70.290188] r8169 98016000.gmac eth0: link down
+[   70.294936] IPv6: ADDRCONF(NETDEV_UP): eth0: link is not ready

@@ -1,0 +1,37 @@
+root@TNAS:/# cat /proc/interrupts 
+           CPU0       CPU1       CPU2       CPU3       
+  3:          0          0          0          0       GIC  29 Edge      arch_timer
+  4:      49340      56391      57163      56746       GIC  30 Edge      arch_timer
+  5:          0          0          0          0       GIC  49 Level     timer0
+  6:          0          0          0          0       GIC  50 Level     timer1
+ 10:          0          0          1          0       GIC  53 Level     ehci_hcd:usb1, ohci_hcd:usb2, xhci-hcd:usb3, xhci-hcd:usb5, xhci-hcd:usb7
+ 12:    2907922    2332571    2190903    2109605       GIC  54 Level     eth0
+ 13:         20         22         30         26       GIC  60 Level     9803f000.sata
+ 17:          0          0          0          0       GIC  84 Level     JPEG_CODEC_IRQ
+ 18:          0          0          0          0       GIC  85 Level     VE1_CODEC_IRQ
+ 19:          0          0          0          0       GIC  86 Level     VE2_CODEC_IRQ
+ 20:          0          0          0          0       GIC  87 Level     VE3_CODEC_IRQ
+ 21:          0          0          0          0       GIC  70 Level     RTK-MD
+ 22:          0          0          0          0       GIC  52 Level     RTK-SE
+ 23:          0          0          0          0       GIC  78 Level     scpu_wrapper
+ 24:          0          0          0          0       GIC  68 Level     sb2_dbg
+ 25:      15411      12592      12034      11626       GIC  65 Level     rpc
+174:          0          0          0          0    IRQMUX  14 Edge      9801bb00.i2c
+175:          0          0          0          0    IRQMUX  15 Edge      9801ba00.i2c
+183:          0          0          0          0    IRQMUX  23 Edge      9801b900.i2c
+186:          0          0          0          0    IRQMUX  26 Edge      9801b700.i2c
+189:         25         21         16         11    IRQMUX  29 Edge      rtk_fan_irq
+194:         38         29         31         24    IRQMUX  34 Edge      serial
+197:          0          0          0          0    IRQMUX  37 Edge      Venus_IR
+200:          0          3          6          3    IRQMUX  40 Edge      98007d00.i2c
+203:          0          0          0          0    IRQMUX  43 Edge      98007c00.i2c
+330:          0          0          0          0  rtk_iso_gpio   5 Edge      Power Button
+331:          0          0          0          0  rtk_iso_gpio   6 Edge      switch_hdmitx
+IPI0:     18854      18232      17767      17389       Rescheduling interrupts
+IPI1:        94        184        183        133       Function call interrupts
+IPI2:         0          0          0          0       CPU stop interrupts
+IPI3:         0          0          0          0       CPU stop (for crash dump) interrupts
+IPI4:         0          0          0          0       Timer broadcast interrupts
+IPI5:         0          0          0          0       IRQ work interrupts
+IPI6:         0          0          0          0       CPU wake-up interrupts
+Err:          0
