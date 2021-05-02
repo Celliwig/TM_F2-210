@@ -1,0 +1,686 @@
+From d20ad343a22567d439f1b275690bf9c05c6272d9 Mon Sep 17 00:00:00 2001
+From: Celliwig <celliwig@nym.hush.com>
+Date: Sun, 2 May 2021 02:01:34 +0100
+Subject: Added basic SATA driver.
+
+---
+ drivers/ata/Kconfig       |  11 +
+ drivers/ata/Makefile      |   1 +
+ drivers/ata/ahci.c        |   9 +
+ drivers/ata/ahci_rtk.c    | 533 ++++++++++++++++++++++++++++++++++++++
+ drivers/ata/libahci.c     |   6 +
+ drivers/ata/libata-core.c |   3 +
+ drivers/ata/libata-sata.c |   7 +
+ include/linux/libata.h    |   5 +
+ 8 files changed, 575 insertions(+)
+ create mode 100644 drivers/ata/ahci_rtk.c
+
+diff --git a/drivers/ata/Kconfig b/drivers/ata/Kconfig
+index 030cb32da..ee4ac195a 100644
+--- a/drivers/ata/Kconfig
++++ b/drivers/ata/Kconfig
+@@ -271,6 +271,17 @@ config AHCI_QORIQ
+ 
+ 	  If unsure, say N.
+ 
++config AHCI_RTK
++	tristate "Realtek AHCI SATA support"
++	depends on (ARCH_REALTEK && OF)
++	select SATA_HOST
++	default ARCH_REALTEK
++	help
++	  This option enables support for Realtek AHCI Serial ATA
++	  controllers.
++
++	  If unsure, say N.
++
+ config SATA_FSL
+ 	tristate "Freescale 3.0Gbps SATA support"
+ 	depends on FSL_SOC
+diff --git a/drivers/ata/Makefile b/drivers/ata/Makefile
+index b8aebfb14..9a8675878 100644
+--- a/drivers/ata/Makefile
++++ b/drivers/ata/Makefile
+@@ -26,6 +26,7 @@ obj-$(CONFIG_AHCI_ST)		+= ahci_st.o libahci.o libahci_platform.o
+ obj-$(CONFIG_AHCI_TEGRA)	+= ahci_tegra.o libahci.o libahci_platform.o
+ obj-$(CONFIG_AHCI_XGENE)	+= ahci_xgene.o libahci.o libahci_platform.o
+ obj-$(CONFIG_AHCI_QORIQ)	+= ahci_qoriq.o libahci.o libahci_platform.o
++obj-$(CONFIG_AHCI_RTK)		+= ahci_rtk.o libahci.o libahci_platform.o
+ 
+ # SFF w/ custom DMA
+ obj-$(CONFIG_PDC_ADMA)		+= pdc_adma.o
+diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
+index 00ba8e5a1..618fabd9c 100644
+--- a/drivers/ata/ahci.c
++++ b/drivers/ata/ahci.c
+@@ -1758,7 +1758,16 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+ 	if (ahci_sb600_enable_64bit(pdev))
+ 		hpriv->flags &= ~AHCI_HFLAG_32BIT_ONLY;
+ 
++#ifdef CONFIG_ARCH_RTD129x
++	// Realtek platform
++	hpriv->flags |= AHCI_HFLAG_NO_MSI;
++	if (pdev->bus->number == 0)
++		hpriv->mmio = ioremap(0x9804f000, 1024);
++	else
++		hpriv->mmio = ioremap(0x9803C000, 1024);
++#else
+ 	hpriv->mmio = pcim_iomap_table(pdev)[ahci_pci_bar];
++#endif
+ 
+ 	/* detect remapped nvme devices */
+ 	ahci_remap_check(pdev, ahci_pci_bar, hpriv);
+diff --git a/drivers/ata/ahci_rtk.c b/drivers/ata/ahci_rtk.c
+new file mode 100644
+index 000000000..d7c323784
+--- /dev/null
++++ b/drivers/ata/ahci_rtk.c
+@@ -0,0 +1,533 @@
++
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/kthread.h>
++#include <linux/platform_device.h>
++#include <linux/ahci_platform.h>
++#include <linux/libata.h>
++#include <linux/reset.h>
++#include <linux/io.h>
++#include <linux/delay.h>
++#include <linux/of_address.h>
++#include <linux/of_gpio.h>
++#include <linux/suspend.h>
++
++#include "ahci.h"
++#include "libata.h"
++#include <scsi/scsi_device.h>
++
++#include <soc/realtek/rtk_chip.h>
++
++#define DRV_NAME_RTK	"ahci_rtk"
++#define POWER_SAVEING	0
++#define MAC_MAX_CLK	5
++#define MAC_MAX_RST	5
++
++struct task_struct *rtk_sata_dev_task;
++int RTK_SATA_DEV_FLAG;
++struct ahci_host_priv *g_hpriv;
++
++enum {
++	SUSPEND = 0,
++	RESUME,
++	RUNNING
++};
++
++/*
++int rtk_enter_loopback_mode(struct ata_port *ap)
++{
++	return 0;
++}*/
++
++static const struct ata_port_info ahci_port_info = {
++	.flags		= AHCI_FLAG_COMMON,
++	.pio_mask	= ATA_PIO4,
++	.udma_mask	= ATA_UDMA6,
++	.port_ops	= &ahci_platform_ops,
++};
++
++static struct scsi_host_template ahci_platform_sht = {
++	AHCI_SHT(DRV_NAME_RTK),
++};
++
++struct ahci_port_desc {
++	unsigned int index;
++	unsigned int power_io;
++	struct reset_control *rsts[MAC_MAX_RST];
++};
++
++struct ahci_rtk_dev {
++	enum rtd_chip_id chip_id;
++	enum rtd_chip_revision chip_revision;
++	unsigned int state;
++	struct ahci_port_desc **ports;
++	struct device *dev;
++	struct ahci_host_priv *hpriv;
++	struct delayed_work work;
++	struct reset_control *rsts[MAC_MAX_RST];
++};
++
++void rtk_sata_phy_poweron(struct ata_link *link)
++{
++	struct ahci_rtk_dev *ahci_dev = g_hpriv->plat_data;
++	void __iomem *mmio = g_hpriv->mmio;
++	unsigned val;
++	int port;
++
++	//pr_info("[%s] %s\n", KBUILD_MODNAME, __func__);
++
++	port = link->ap->port_no;
++	if (port >= g_hpriv->nports)
++		return;
++	if ((ahci_dev->chip_id & 0xFFF0) == CHIP_ID_RTD129X) {
++		phy_power_on(g_hpriv->phys[port]);
++	} else if (ahci_dev->chip_id == CHIP_ID_RTD1619) {
++		val = readl(mmio + 0xf18);
++		val = val | (0x7 << 3*port);
++		writel(val, mmio + 0xf18);
++	}
++}
++EXPORT_SYMBOL_GPL(rtk_sata_phy_poweron);
++
++static void rtk_sata_init(struct ahci_host_priv *hpriv)
++{
++	struct ahci_rtk_dev *ahci_dev = hpriv->plat_data;
++	void __iomem *mmio = hpriv->mmio;
++	unsigned int val;
++
++	//pr_info("[%s] %s\n", KBUILD_MODNAME, __func__);
++
++	if (ahci_dev->chip_id == CHIP_ID_RTD1619)
++		writel(0x40, mmio + 0xf18);
++
++	val = readl(mmio + 0xC);
++	writel((val | 0x3), mmio + 0xC);
++}
++
++static int rtk_sata_dev_fun(void *data)
++{
++	struct ahci_rtk_dev *ahci_dev = (struct ahci_rtk_dev *)data;
++	struct ata_host *host;
++	struct ahci_host_priv *hpriv;
++	struct ata_port *ap;
++	struct scsi_device *sdev;
++	int i;
++
++	set_current_state(TASK_INTERRUPTIBLE);
++	while (!kthread_should_stop()) {
++		schedule();
++		host = dev_get_drvdata(ahci_dev->dev);
++		if (!host) {
++			set_current_state(TASK_INTERRUPTIBLE);
++			continue;
++		}
++
++		hpriv = host->private_data;
++		for (i = 0; i < hpriv->nports; i++) {
++			ap = host->ports[i];
++			sdev = ap->link.device[0].sdev;
++			if (!sdev)
++				continue;
++			if (ap->scsi_host->shost_state == SHOST_RUNNING)
++				scsi_remove_device(sdev);
++		}
++		set_current_state(TASK_INTERRUPTIBLE);
++	}
++
++	return 0;
++}
++/*
++static int rtk_sata_remove_scsi(struct ahci_rtk_dev *ahci_dev)
++{
++	struct ata_host *host;
++	struct ahci_host_priv *hpriv;
++	struct ata_port *ap;
++	struct scsi_device *sdev;
++	int i;
++
++	host = dev_get_drvdata(ahci_dev->dev);
++	if (!host)
++		return 0;
++
++	hpriv = host->private_data;
++	for (i = 0; i < hpriv->nports; i++) {
++		ap = host->ports[i];
++		sdev = ap->link.device[0].sdev;
++		if (!sdev)
++			continue;
++		if (ap->scsi_host->shost_state == SHOST_RUNNING)
++			scsi_remove_device(sdev);
++	}
++
++	return 0;
++}
++*/
++static void rtk_sata_host_resume(struct ahci_rtk_dev *ahci_dev)
++{
++	struct ata_host *host = dev_get_drvdata(ahci_dev->dev);
++	struct ahci_host_priv *hpriv = host->private_data;
++	struct ata_port *ap;
++	int i;
++	int resume_ok = 0;
++
++	//pr_info("[%s] %s\n", KBUILD_MODNAME, __func__);
++
++	for (i = 0; i < hpriv->nports; i++) {
++		ap = host->ports[i];
++		if (ap->link.sata_spd &&
++			ap->scsi_host->shost_state == SHOST_RUNNING)
++			resume_ok++;
++		else if (!ap->link.sata_spd)
++			resume_ok++;
++	}
++	if (resume_ok != hpriv->nports)
++		return;
++
++	for (i = 0; i < hpriv->nports; i++) {
++		ap = host->ports[i];
++		if (ap->link.sata_spd) {
++			dev_info(ahci_dev->dev, "ata scsi user scan\n");
++			ata_scsi_user_scan(ap->scsi_host, 0, 0, 0);
++		}
++	}
++	ahci_dev->state = RUNNING;
++}
++
++static void rtk_sata_power_ctrl(struct ahci_rtk_dev *ahci_dev)
++{
++	struct ata_host *host = dev_get_drvdata(ahci_dev->dev);
++	struct ahci_host_priv *hpriv = host->private_data;
++	struct ata_port *ap;
++	int i;
++
++	//pr_info("[%s] %s\n", KBUILD_MODNAME, __func__);
++
++	if(!IS_ENABLED(POWER_SAVEING))
++		return;
++
++	for (i = 0; i < hpriv->nports; i++) {
++		ap = host->ports[i];
++
++		if (hpriv->phys[i]->power_count == 0) {
++			phy_power_on(hpriv->phys[i]);
++			msleep(20);
++		}
++		if (!ap->hotplug_flag && !ap->link.sata_spd &&
++				hpriv->phys[i]->power_count == 1)
++			phy_power_off(hpriv->phys[i]);
++	}
++}
++
++static void rtk_sata_host_ctrl(struct work_struct *work)
++{
++	struct ahci_rtk_dev *ahci_dev =
++			container_of(work, struct ahci_rtk_dev, work.work);
++	struct device *dev = ahci_dev->dev;
++	struct platform_device *pdev =
++			container_of(dev, struct platform_device, dev);
++	struct ata_host *host = dev_get_drvdata(ahci_dev->dev);
++
++	//pr_info("[%s] %s\n", KBUILD_MODNAME, __func__);
++
++	if (!host) {
++		if (IS_ENABLED(POWER_SAVEING))
++			schedule_delayed_work(&ahci_dev->work, 2000);
++		return;
++	}
++
++	switch (ahci_dev->state) {
++	case RUNNING:
++		if (IS_ENABLED(POWER_SAVEING)) {
++			rtk_sata_power_ctrl(ahci_dev);
++			schedule_delayed_work(&ahci_dev->work, 200);
++		}
++		break;
++
++	case RESUME:
++		rtk_sata_host_resume(ahci_dev);
++		schedule_delayed_work(&ahci_dev->work, 20);
++		break;
++	case SUSPEND:
++	default:
++		dev_err(ahci_dev->dev, "state error, do nothing\n");
++		break;
++	}
++}
++
++static int ahci_rtk_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct ahci_rtk_dev *ahci_dev;
++	struct ahci_host_priv *hpriv;
++	struct device_node *child;
++	struct ahci_port_desc *desc;
++	struct reset_control *rst;
++	int id;
++	int i, rtn;
++
++	//pr_info("[%s] %s\n", KBUILD_MODNAME, __func__);
++
++	ahci_dev = devm_kzalloc(dev, sizeof(struct ahci_rtk_dev), GFP_KERNEL);
++	if (!ahci_dev)
++		goto memalloc_fail;
++
++	ahci_dev->chip_id = get_rtd_chip_id();
++	ahci_dev->chip_revision = get_rtd_chip_revision();
++	ahci_dev->dev = dev;
++
++	hpriv = ahci_platform_get_resources(pdev, AHCI_PLATFORM_GET_RESETS);
++	if (IS_ERR(hpriv)) {
++		dev_err(dev, "[SATA] Failed to find device.\n");
++		return PTR_ERR(hpriv);
++	}
++	g_hpriv = hpriv;
++
++	ahci_dev->ports = devm_kcalloc(dev, hpriv->nports,
++				sizeof(*ahci_dev->ports), GFP_KERNEL);
++	if (!ahci_dev->ports)
++		goto memalloc_fail;
++
++	for (i=0; i<MAC_MAX_RST; i++) {
++		rst = of_reset_control_get_by_index(dev->of_node, i);
++		if (IS_ERR(rst))
++			break;
++		ahci_dev->rsts[i] = rst;
++		reset_control_deassert(rst);
++	}
++
++	for_each_available_child_of_node(dev->of_node, child) {
++		desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
++		if (!desc)
++			goto memalloc_fail;
++
++		if (of_property_read_u32(child, "reg", &id))
++			goto dtb_fail;
++
++		if (id >= hpriv->nports)
++			goto dtb_fail;
++
++		desc->power_io = of_get_gpio(child, 0);
++		gpio_request(desc->power_io, child->name);
++		gpio_set_value(desc->power_io, 1);
++		gpio_free(desc->power_io);
++
++		for (i=0; i<MAC_MAX_RST; i++) {
++			rst = of_reset_control_get_by_index(child, i);
++			if (IS_ERR(rst))
++				break;
++			desc->rsts[i] = rst;
++			reset_control_deassert(rst);
++		}
++		desc->index = id;
++		ahci_dev->ports[id] = desc;
++	}
++
++	ahci_platform_enable_clks(hpriv);
++	for (i = 0; i < hpriv->nports; i++)
++		phy_init(hpriv->phys[i]);
++
++	hpriv->plat_data = ahci_dev;
++	ahci_dev->hpriv = hpriv;
++
++	rtk_sata_init(hpriv);
++	ahci_dev->state = RUNNING;
++
++	// Wait for interfaces to settle
++	mdelay(50);
++
++	rtn = ahci_platform_init_host(pdev, ahci_dev->hpriv, &ahci_port_info, &ahci_platform_sht);
++	if (rtn)
++		goto init_fail;
++
++	//INIT_DELAYED_WORK(&ahci_dev->work, rtk_sata_host_ctrl);
++	//schedule_delayed_work(&ahci_dev->work, 800);
++
++	// This appears useless
++	//rtk_sata_dev_task = kthread_run(rtk_sata_dev_fun, ahci_dev, "rtk sata dev handle");
++
++	dev_info(dev, "Realtek AHCI SATA registered\n");
++
++	return 0;
++
++init_fail:
++	dev_err(dev, "[SATA] Failed to initialise host.\n");
++	ahci_platform_disable_resources(hpriv);
++	return rtn;
++dtb_fail:
++	dev_err(dev, "[SATA] get resource from dtb fail\n");
++	return -EINVAL;
++
++memalloc_fail:
++	dev_err(dev, "[SATA] memalloc fail\n");
++	return -ENOMEM;
++}
++
++/*static int ahci_rtk_prepare(struct device *dev)
++{
++	struct ata_host *host = dev_get_drvdata(dev);
++	struct ahci_host_priv *hpriv = host->private_data;
++	struct ahci_rtk_dev *ahci_dev = hpriv->plat_data;
++
++	dev_info(dev, "enter %s\n", __func__);
++	rtk_sata_remove_scsi(ahci_dev);
++	wake_up_process(rtk_sata_dev_task);
++	msleep(1600);
++
++	dev_info(dev, "exit %s\n", __func__);
++
++	return 0;
++}*/
++
++#ifdef CONFIG_PM
++static int ahci_rtk_suspend(struct device *dev)
++{
++	struct ata_host *host = dev_get_drvdata(dev);
++	struct ahci_host_priv *hpriv = host->private_data;
++	struct ahci_rtk_dev *ahci_dev = hpriv->plat_data;
++	struct reset_control *rst;
++	int rc, i, j;
++
++	dev_info(dev, "enter %s\n", __func__);
++
++	rc = ahci_platform_suspend_host(dev);
++	if (rc)
++		return rc;
++
++//	if (RTK_PM_STATE == PM_SUSPEND_STANDBY) {
++//		ahci_platform_disable_clks(hpriv);
++//	} else {
++		ahci_platform_disable_resources(hpriv);
++		for (i = 0; i < hpriv->nports; i++) {
++			for (j = 0; j < MAC_MAX_RST; j++) {
++				rst = ahci_dev->ports[i]->rsts[j];
++				if (rst != NULL)
++					reset_control_assert(rst);
++				else
++					break;
++			}
++		}
++		for (j = 0; j < MAC_MAX_RST; j++) {
++			rst = ahci_dev->rsts[j];
++			if (rst != NULL)
++				reset_control_assert(rst);
++			else
++				break;
++		}
++//	}
++
++	dev_info(dev, "exit %s\n", __func__);
++	return 0;
++}
++
++static void ahci_rtk_shutdown(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++
++	dev_info(dev, "enter %s\n", __func__);
++	ahci_rtk_suspend(dev);
++	dev_info(dev, "exit %s\n", __func__);
++}
++
++static int ahci_rtk_resume(struct device *dev)
++{
++	struct ata_host *host = dev_get_drvdata(dev);
++	struct ahci_host_priv *hpriv = host->private_data;
++	struct ahci_rtk_dev *ahci_dev = hpriv->plat_data;
++	struct device_node *child;
++	struct reset_control *rst;
++	int rc, i = 0, j;
++	int power_io;
++
++	dev_info(dev, "enter %s\n", __func__);
++
++	for_each_available_child_of_node(dev->of_node, child) {
++		power_io = of_get_gpio(child, 0);
++		ahci_dev->ports[i++]->power_io = power_io;
++		gpio_request(power_io, NULL);
++		gpio_set_value(power_io, 1);
++		gpio_free(power_io);
++	}
++
++//	if (RTK_PM_STATE == PM_SUSPEND_STANDBY) {
++//		ahci_platform_enable_clks(hpriv);
++//		ahci_dev->state = RUNNING;
++//	} else {
++		for (j = 0; j < MAC_MAX_RST; j++) {
++			rst = ahci_dev->rsts[j];
++			if (rst != NULL)
++				reset_control_deassert(rst);
++			else
++				break;
++		}
++		for (i = 0; i < hpriv->nports; i++) {
++			for (j = 0; j < MAC_MAX_RST; j++) {
++				rst = ahci_dev->ports[i]->rsts[j];
++				if (rst != NULL)
++					reset_control_deassert(rst);
++				else
++					break;
++			}
++		}
++		ahci_platform_enable_clks(hpriv);
++		for (i = 0; i < hpriv->nports; i++)
++			phy_init(hpriv->phys[i]);
++
++		ahci_dev->state = RESUME;
++		rtk_sata_init(hpriv);
++//	}
++	rc = ahci_platform_resume_host(dev);
++	if (rc)
++		goto disable_resources;
++
++	/* We resumed so update PM runtime state */
++	pm_runtime_disable(dev);
++	pm_runtime_set_active(dev);
++	pm_runtime_enable(dev);
++
++	schedule_delayed_work(&ahci_dev->work, 200);
++
++	dev_info(dev, "exit %s\n", __func__);
++	return 0;
++
++disable_resources:
++	ahci_platform_disable_resources(hpriv);
++	return rc;
++}
++
++/*static SIMPLE_DEV_PM_OPS(ahci_rtk_pm_ops, ahci_rtk_suspend, ahci_rtk_resume);*/
++
++static const struct dev_pm_ops ahci_rtk_pm_ops = {
++/*	.prepare = ahci_rtk_prepare,*/
++	.suspend = ahci_rtk_suspend,
++	.resume = ahci_rtk_resume,
++};
++#else
++static const struct dev_pm_ops ahci_rtk_pm_ops = {};
++#endif
++
++static const struct of_device_id ahci_rtk_of_match[] = {
++	{ .compatible = "Realtek,ahci-sata", },
++	{},
++};
++MODULE_DEVICE_TABLE(of, ahci_rtk_of_match);
++
++static struct platform_driver ahci_rtk_driver = {
++	.probe = ahci_rtk_probe,
++	.remove = ata_platform_remove_one,
++#ifdef CONFIG_PM
++	.shutdown = ahci_rtk_shutdown,
++#endif /* CONFIG_PM */
++	.driver = {
++		.name = DRV_NAME_RTK,
++		.of_match_table = ahci_rtk_of_match,
++#ifdef CONFIG_PM
++		.pm = &ahci_rtk_pm_ops,
++#endif
++	},
++};
++module_platform_driver(ahci_rtk_driver);
++
++MODULE_DESCRIPTION("RTK AHCI SATA platform driver");
++MODULE_AUTHOR("Simon Hsu <simon_hsu@realtek.com>");
++MODULE_LICENSE("GPL");
++MODULE_ALIAS("platform:ahci");
+diff --git a/drivers/ata/libahci.c b/drivers/ata/libahci.c
+index ea5bf5f4c..b70fe3857 100644
+--- a/drivers/ata/libahci.c
++++ b/drivers/ata/libahci.c
+@@ -1782,6 +1782,12 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
+ 	}
+ 
+ 	if (irq_stat & (PORT_IRQ_CONNECT | PORT_IRQ_PHYRDY)) {
++#ifdef CONFIG_AHCI_RTK
++		if(irq_stat & PORT_IRQ_CONNECT)
++			ap->hotplug_flag = 1;
++		else
++			ap->hotplug_flag = 0;
++#endif
+ 		ata_ehi_hotplugged(host_ehi);
+ 		ata_ehi_push_desc(host_ehi, "%s",
+ 			irq_stat & PORT_IRQ_CONNECT ?
+diff --git a/drivers/ata/libata-core.c b/drivers/ata/libata-core.c
+index 61c762961..c7f331cfa 100644
+--- a/drivers/ata/libata-core.c
++++ b/drivers/ata/libata-core.c
+@@ -5150,6 +5150,9 @@ void ata_dev_init(struct ata_device *dev)
+ 	link->sata_spd_limit = link->hw_sata_spd_limit;
+ 	link->sata_spd = 0;
+ 
++#if defined(CONFIG_AHCI_RTK)
++	sata_set_spd(link);
++#endif
+ 	/* High bits of dev->flags are used to record warm plug
+ 	 * requests which occur asynchronously.  Synchronize using
+ 	 * host lock.
+diff --git a/drivers/ata/libata-sata.c b/drivers/ata/libata-sata.c
+index c16423e44..5945a5c59 100644
+--- a/drivers/ata/libata-sata.c
++++ b/drivers/ata/libata-sata.c
+@@ -16,6 +16,10 @@
+ #include "libata.h"
+ #include "libata-transport.h"
+ 
++#ifdef CONFIG_AHCI_RTK
++extern void rtk_sata_phy_poweron(struct ata_link *link);
++#endif
++
+ /* debounce timing parameters in msecs { interval, duration, timeout } */
+ const unsigned long sata_deb_timing_normal[]		= {   5,  100, 2000 };
+ EXPORT_SYMBOL_GPL(sata_deb_timing_normal);
+@@ -325,6 +329,9 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
+ 			return rc;
+ 	} while ((scontrol & 0xf0f) != 0x300 && --tries);
+ 
++#if defined(CONFIG_AHCI_RTK)
++	rtk_sata_phy_poweron(link);
++#endif
+ 	if ((scontrol & 0xf0f) != 0x300) {
+ 		ata_link_warn(link, "failed to resume link (SControl %X)\n",
+ 			     scontrol);
+diff --git a/include/linux/libata.h b/include/linux/libata.h
+index 5f550eb27..eb2bccc6a 100644
+--- a/include/linux/libata.h
++++ b/include/linux/libata.h
+@@ -858,6 +858,11 @@ struct ata_port {
+ 
+ 	struct mutex		scsi_scan_mutex;
+ 	struct delayed_work	hotplug_task;
++
++#ifdef CONFIG_AHCI_RTK
++	unsigned int hotplug_flag;
++#endif
++
+ 	struct work_struct	scsi_rescan_task;
+ 
+ 	unsigned int		hsm_task_state;
+-- 
+2.25.1
+
