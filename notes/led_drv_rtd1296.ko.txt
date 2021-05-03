@@ -1,0 +1,15 @@
+This driver appears to register GPIOs:
+
+10  - 
+16  - 
+17  - HDD2
+18  - 
+19  - 
+20  - HDD1
+21  - 
+22  - 
+23  - 
+24  - 
+99  - LAN
+100 - Speaker
+106 - This is power button

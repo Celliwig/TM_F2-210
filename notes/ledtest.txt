@@ -1,0 +1,10 @@
+On board led test command.
+
+echo led<n>on > /dev/leddrv<n>
+echo led<n>off > /dev/leddrv<n>
+
+1: HDD1 [Active High]
+3: HDD2 [Active High]
+10: Switch all
+11: LAN [Active High]
+12: Speaker[Active Low]

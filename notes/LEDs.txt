@@ -1,0 +1,7 @@
+rtk_misc_gpio
+	 17 - HDD2 [Active High]
+	 20 - HDD1 [Active High]
+	 24 - Turn On/Off all front panel LEDS. [Active high]
+	 99 - LAN [Active High]
+	100 - Speaker [Active Low]
+
