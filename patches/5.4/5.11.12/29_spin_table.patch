@@ -1,0 +1,102 @@
+From 8214bc9e84a075f62425641fbdddcbc4f69a396f Mon Sep 17 00:00:00 2001
+From: Celliwig <celliwig@nym.hush.com>
+Date: Wed, 5 May 2021 01:40:57 +0100
+Subject: Implemented 'rtk_spin_table' to bring up secondary CPUs.
+
+---
+ arch/arm64/kernel/cpu_ops.c        |  6 ++++
+ arch/arm64/kernel/smp_spin_table.c | 51 ++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)
+
+diff --git a/arch/arm64/kernel/cpu_ops.c b/arch/arm64/kernel/cpu_ops.c
+index e133011f6..189cf1760 100644
+--- a/arch/arm64/kernel/cpu_ops.c
++++ b/arch/arm64/kernel/cpu_ops.c
+@@ -18,12 +18,18 @@ extern const struct cpu_operations smp_spin_table_ops;
+ #ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
+ extern const struct cpu_operations acpi_parking_protocol_ops;
+ #endif
++#ifdef CONFIG_ARCH_RTD129x
++extern const struct cpu_operations rtk_spin_table_ops;
++#endif
+ extern const struct cpu_operations cpu_psci_ops;
+ 
+ static const struct cpu_operations *cpu_ops[NR_CPUS] __ro_after_init;
+ 
+ static const struct cpu_operations *const dt_supported_cpu_ops[] __initconst = {
+ 	&smp_spin_table_ops,
++#ifdef CONFIG_ARCH_RTD129x
++	&rtk_spin_table_ops,
++#endif
+ 	&cpu_psci_ops,
+ 	NULL,
+ };
+diff --git a/arch/arm64/kernel/smp_spin_table.c b/arch/arm64/kernel/smp_spin_table.c
+index 056772c26..403ff120d 100644
+--- a/arch/arm64/kernel/smp_spin_table.c
++++ b/arch/arm64/kernel/smp_spin_table.c
+@@ -102,6 +102,48 @@ static int smp_spin_table_cpu_prepare(unsigned int cpu)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_ARCH_RTD129x
++static int smp_spin_table_cpu_prepare_rtk(unsigned int cpu)
++{
++	__le64 __iomem *release_addr;
++
++	if (!cpu_release_addr[cpu])
++		return -ENODEV;
++
++	/*
++	 * The cpu-release-addr may or may not be inside the linear mapping.
++	 * As ioremap_cache will either give us a new mapping or reuse the
++	 * existing linear mapping, we can use it to cover both cases. In
++	 * either case the memory will be MT_NORMAL.
++	 */
++	// Release address not in RAM, so don't use ioremap_cache
++	release_addr = ioremap(cpu_release_addr[cpu], sizeof(*release_addr));
++	if (!release_addr)
++		return -ENOMEM;
++
++	/*
++	 * We write the release address as LE regardless of the native
++	 * endianness of the kernel. Therefore, any boot-loaders that
++	 * read this address need to convert this address to the
++	 * boot-loader's endianness before jumping. This is mandated by
++	 * the boot protocol.
++	 */
++	// Destination only 32 bits wide?
++	writel_relaxed(__pa_symbol(secondary_holding_pen), release_addr);
++	__flush_dcache_area((__force void *)release_addr,
++			    sizeof(*release_addr));
++
++	/*
++	 * Send an event to wake up the secondary CPU.
++	 */
++	sev();
++
++	iounmap(release_addr);
++
++	return 0;
++}
++#endif
++
+ static int smp_spin_table_cpu_boot(unsigned int cpu)
+ {
+ 	/*
+@@ -123,3 +165,12 @@ const struct cpu_operations smp_spin_table_ops = {
+ 	.cpu_prepare	= smp_spin_table_cpu_prepare,
+ 	.cpu_boot	= smp_spin_table_cpu_boot,
+ };
++
++#ifdef CONFIG_ARCH_RTD129x
++const struct cpu_operations rtk_spin_table_ops = {
++	.name		= "rtk-spin-table",
++	.cpu_init	= smp_spin_table_cpu_init,
++	.cpu_prepare	= smp_spin_table_cpu_prepare_rtk,
++	.cpu_boot	= smp_spin_table_cpu_boot,
++};
++#endif
+-- 
+2.25.1
+
