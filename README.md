@@ -26,10 +26,10 @@ bootm 0x08000000 - 0x02100000
 ```
 
 ## Debian install
-Installing Debian. From the ARM64 installer ISO, get the initrd.
+Installing Debian. From the ARM64 installer ISO, get 'initrd.gz' from '/install.a64/'.
 ```
 mkimage -A arm64 -O linux -T kernel -C gzip -a 0x06000000 -e 0x06000000 -n "5.4 kernel" -d Image.gz uImage.F2-210.kernel
-mkimage -A arm64 -O linux -T ramdisk -C none -a 0x2200000 -n "Debian Installer" -d di-initrd.gz uImage.F2-210.di-initrd
+mkimage -A arm64 -O linux -T ramdisk -C none -a 0x2200000 -n "Debian Installer" -d initrd.gz uImage.F2-210.di-initrd
 
 Load Kernel/InitRD:
 loady 0x08000000 (kernel uImage)
@@ -40,6 +40,12 @@ setenv bootargs 'earlycon=uart8250,mmio32,0x98007800 console=ttyS0,115200 loglev
 bootm 0x08000000 0x18000000 0x02100000
 ```
 Add 'DEBIAN_FRONTEND=text' to the bootargs, to get a simpler interface (if you've only got a basic terminal that doesn't support ncurses).
+
+## Disk boot:
+loady 0x08000000 (kernel)
+loady 0x02100000 (fdt)
+setenv bootargs 'earlycon=uart8250,mmio32,0x98007800 console=ttyS0,115200 clk_ignore_unused pd_ignore_unused root=/dev/sda2 ro'
+bootm 0x08000000 - 0x02100000
 
 ## Existing drivers
 Drivers already exist for:
@@ -57,3 +63,8 @@ Code stub to write an 'H' to the serial port (good for debugging early stage ker
 #	mov     x24, #0x98007800
 	ldr     x24, =(0x98007800)
 	strb    w23, [x24]
+
+## Helpful links
+https://www.modders-inc.com/terra-master-f2-210-nas-review/
+https://www.cnx-software.com/2018/09/23/realtek-rtd1296-u-boot-linux-source-code-rtd1619-cortex-a55-soc/
+https://blog.danman.eu/zidoo-x8-recovery/
