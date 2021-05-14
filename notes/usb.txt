@@ -1,0 +1,20 @@
+USB ports:
+	Back:
+		Left:	0x981f0000
+		Right:	0x98020000
+
+	Internal:
+		Top:	0x98013000
+		Bottom:	N/C
+		USB-C:
+
+
+USB controllers:	Type		5.4		Orig
+	0x98029000:	XHCI		Bus 1		Bus 5
+					Bus 2		Bus 6
+	0x981f0000:	XHCI		Bus 3		Bus 7
+					Bus 4		Bus 8
+	0x98013000:	EHCI		Bus 5		Bus 1
+	0x98013400:	OHCI		Bus 6		Bus 2
+	0x98020000:	XHCI		Bus 7		Bus 3 
+					Bus 8		Bus 4
