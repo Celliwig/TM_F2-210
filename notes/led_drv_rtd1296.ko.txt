@@ -1,15 +1,15 @@
 This driver appears to register GPIOs:
 
-10  - 
-16  - 
-17  - HDD2
-18  - 
-19  - 
 20  - HDD1
+10  - 
+17  - HDD2
 21  - 
+18  - HDD3?
 22  - 
+19  - HDD4?
 23  - 
-24  - 
+16  - LED above LAN
+24  - Turn on/off all front panel LEDS (including Power).
 99  - LAN
 100 - Speaker
 106 - This is power button

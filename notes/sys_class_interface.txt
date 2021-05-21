@@ -1,0 +1,28 @@
+root@TNAS:/# ls /sys/class/gpio/
+export       gpiochip0    gpiochip101  unexport
+root@TNAS:/# echo 20 > /sys/class/gpio/export 
+root@TNAS:/# ls /sys/class/gpio/
+export       gpio20       gpiochip0    gpiochip101  unexport
+root@TNAS:/# cat /sys/class/gpio/gpio20/
+active_low  edge        subsystem/  value
+direction   power/      uevent
+root@TNAS:/# cat /sys/class/gpio/gpio20/direction 
+out
+root@TNAS:/# cat /sys/class/gpio/gpio20/value 
+0
+root@TNAS:/# echo 1 > /sys/class/gpio/gpio20/value 
+root@TNAS:/# echo 1 > /sys/class/gpio/gpio20/value 
+root@TNAS:/# 
+root@TNAS:/# 
+root@TNAS:/# ps -A|grep sys
+  107 ?        00:00:00 dc_sys_debug_wo
+  517 ?        00:00:00 syslogd
+  816 ?        00:00:11 syscontrol
+root@TNAS:/# kill -s TERM 816
+root@TNAS:/# ps -A|grep sys
+  107 ?        00:00:00 dc_sys_debug_wo
+  517 ?        00:00:00 syslogd
+root@TNAS:/# 
+root@TNAS:/# 
+root@TNAS:/# 
+root@TNAS:/# echo 1 > /sys/class/gpio/gpio20/value 
