@@ -1,0 +1,41 @@
+Front Panel Connector
+----------------------
+
+J5
+
+			Panel Function				Motherboard connection
+-----		       ----------------			       ------------------------
+|   |
+| * |			HD4						Q31
+|   ||
+| * ||			HD3						Q32
+|   ||
+| * ||			HD2						Q33
+|   ||
+| * ||			HD1						Q34
+|   ||
+| * ||			N/C						Q29
+|   ||
+| * ||			N/C						Q28
+|   ||
+| * ||			N/C						Q27
+|   ||
+| * ||			LED below LAN					N/C
+|   ||
+| * ||			N/C						Q28
+|   ||
+| * ||			Power Switch					C27
+|   ||
+| * ||			+3.3V
+|   ||
+| * ||			Gnd
+|   ||
+| * ||			LAN						Q35
+|   ||
+| * ||			+3.3V
+|   ||
+| * ||			LED above LAN					Q30
+|   ||
+| * |			LED enable/disable (+Power)			Q25
+|   |
+-----
