@@ -59,12 +59,14 @@ Should probably replace Realtek's, with main line drivers.
 Code stub to write an 'H' to the serial port (good for debugging early stage kernel).
 
 ## Writing character to UART
+```
 	mov     x23, #'H'
 #	mov     x24, #0x98007800
 	ldr     x24, =(0x98007800)
 	strb    w23, [x24]
+```
 
 ## Helpful links
-https://www.modders-inc.com/terra-master-f2-210-nas-review/
-https://www.cnx-software.com/2018/09/23/realtek-rtd1296-u-boot-linux-source-code-rtd1619-cortex-a55-soc/
-https://blog.danman.eu/zidoo-x8-recovery/
+1. https://www.modders-inc.com/terra-master-f2-210-nas-review/
+2. https://www.cnx-software.com/2018/09/23/realtek-rtd1296-u-boot-linux-source-code-rtd1619-cortex-a55-soc/
+3. https://blog.danman.eu/zidoo-x8-recovery/
