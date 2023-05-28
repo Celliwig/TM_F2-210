@@ -3,6 +3,8 @@ TerraMaster F2-210 code
 
 This repo contains various bits of code related to the TerraMaster F2-210.
 
+<b>!!!!! Development has stalled !!!!!</b>
+
 ## Compilation
 Assuming cross-compile installed.
 
